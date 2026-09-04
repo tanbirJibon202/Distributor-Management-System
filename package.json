@@ -1,0 +1,47 @@
+{
+	"name": "dms-distributor-management-system",
+	"version": "1.0.0",
+	"description": "Cloud-based B2B distributor management system (DMS) backend — credit-based ordering, inventory, and bKash payments for FMCG/pharma distribution.",
+	"main": "dist/src/server.js",
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/server.ts",
+		"build": "tsc",
+		"start": "node dist/src/server.js",
+		"seed": "tsx prisma/seed.ts",
+		"format:check": "npx @biomejs/biome format ./src",
+		"format:fix": "npx @biomejs/biome format --write ./src",
+		"lint:check": "npx @biomejs/biome lint ./src",
+		"lint:fix": "npx @biomejs/biome lint --write ./src"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@prisma/client": "^6.9.0",
+		"bcryptjs": "^3.0.3",
+		"cookie-parser": "^1.4.7",
+		"cors": "^2.8.6",
+		"dotenv": "^16.4.7",
+		"express": "^5.1.0",
+		"express-rate-limit": "^7.5.0",
+		"google-auth-library": "^9.15.1",
+		"helmet": "^8.0.0",
+		"http-status": "^2.1.0",
+		"jsonwebtoken": "^9.0.2",
+		"redis": "^4.7.0",
+		"zod": "^3.24.2"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/bcryptjs": "^2.4.6",
+		"@types/cookie-parser": "^1.4.8",
+		"@types/cors": "^2.8.17",
+		"@types/express": "^5.0.0",
+		"@types/jsonwebtoken": "^9.0.9",
+		"@types/node": "^22.13.5",
+		"prisma": "^6.9.0",
+		"tsx": "^4.19.3",
+		"typescript": "^5.7.3"
+	}
+}
