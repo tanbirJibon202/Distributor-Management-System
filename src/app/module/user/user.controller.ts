@@ -13,6 +13,17 @@ const updateMe = catchAsync(async (req, res) => {
   });
 });
 
+const getUsers = catchAsync(async (req, res) => {
+  const result = await UserService.getUsers(req.query as Record<string, string>);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Users retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const updateUserRole = catchAsync(async (req, res) => {
   const result = await UserService.updateUserRole(
     req.user!.userId,
@@ -28,4 +39,4 @@ const updateUserRole = catchAsync(async (req, res) => {
   });
 });
 
-export const UserController = { updateMe, updateUserRole };
+export const UserController = { updateMe, getUsers, updateUserRole };

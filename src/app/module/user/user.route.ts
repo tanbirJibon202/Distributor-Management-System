@@ -14,6 +14,7 @@ userRouter.patch(
 );
 
 const adminUserRouter = Router();
+adminUserRouter.get('/', auth(Role.SUPER_ADMIN), UserController.getUsers);
 adminUserRouter.patch(
   '/:id/role',
   auth(Role.SUPER_ADMIN),

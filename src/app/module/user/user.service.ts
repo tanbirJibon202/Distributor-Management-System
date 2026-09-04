@@ -1,7 +1,8 @@
-import { Role } from '@prisma/client';
+import { type Prisma, Role } from '@prisma/client';
 import httpStatus from 'http-status';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { createAuditLog } from '../audit/audit.service.js';
 
 const userPublicSelect = {
@@ -22,6 +23,46 @@ const updateMe = async (userId: string, data: { name?: string; phone?: string })
     select: userPublicSelect,
   });
   return user;
+};
+
+type UserQuery = {
+  page?: string;
+  limit?: string;
+  search?: string;
+  role?: Role;
+  branchId?: string;
+  sortOrder?: 'asc' | 'desc';
+};
+
+const getUsers = async (query: UserQuery) => {
+  const { page, limit, skip } = getPaginationParams(query);
+
+  const where: Prisma.UserWhereInput = { deletedAt: null };
+
+  if (query.search) {
+    where.OR = [
+      { name: { contains: query.search, mode: 'insensitive' } },
+      { email: { contains: query.search, mode: 'insensitive' } },
+    ];
+  }
+  if (query.role) where.role = query.role;
+  if (query.branchId) where.branchId = query.branchId;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: query.sortOrder ?? 'desc' },
+      select: {
+        ...userPublicSelect,
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { meta: buildMeta(page, limit, total), data: users };
 };
 
 const updateUserRole = async (
@@ -68,4 +109,4 @@ const updateUserRole = async (
   return updated;
 };
 
-export const UserService = { updateMe, updateUserRole };
+export const UserService = { updateMe, getUsers, updateUserRole };
