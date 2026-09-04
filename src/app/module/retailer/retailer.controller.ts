@@ -13,6 +13,31 @@ const createRetailer = catchAsync(async (req, res) => {
   });
 });
 
+const getRetailers = catchAsync(async (req, res) => {
+  const result = await RetailerService.getRetailers(req.query as Record<string, string>);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Retailers retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const deleteRetailer = catchAsync(async (req, res) => {
+  const result = await RetailerService.deleteRetailer(
+    req.user!.userId,
+    req.params.id as string,
+    req.ip,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Retailer deleted successfully',
+    data: result,
+  });
+});
+
 const getCreditStatus = catchAsync(async (req, res) => {
   const result = await RetailerService.getCreditStatus(req.params.id as string);
 
@@ -23,4 +48,9 @@ const getCreditStatus = catchAsync(async (req, res) => {
   });
 });
 
-export const RetailerController = { createRetailer, getCreditStatus };
+export const RetailerController = {
+  createRetailer,
+  getRetailers,
+  deleteRetailer,
+  getCreditStatus,
+};

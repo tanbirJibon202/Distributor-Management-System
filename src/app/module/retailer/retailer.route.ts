@@ -13,6 +13,12 @@ router.post(
   validateRequest(RetailerValidation.createRetailerSchema),
   RetailerController.createRetailer,
 );
+router.get('/', auth(), RetailerController.getRetailers);
 router.get('/:id/credit-status', auth(), RetailerController.getCreditStatus);
+router.delete(
+  '/:id',
+  auth(Role.SUPER_ADMIN, Role.BRANCH_MANAGER),
+  RetailerController.deleteRetailer,
+);
 
 export const RetailerRoutes = router;
