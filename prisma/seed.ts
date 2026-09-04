@@ -1,5 +1,5 @@
+import { OrderStatus, PaymentStatus, PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { PrismaClient, Role, OrderStatus, PaymentStatus } from '../src/generated/prisma/index.js';
 
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 12;
@@ -75,18 +75,102 @@ async function main() {
   }
 
   const productData = [
-    { name: 'Lux Soap 100g', sku: 'SKU-001', category: 'Toiletries', unit: 'PCS', price: 35, costPrice: 28 },
-    { name: 'Lifebuoy Soap 100g', sku: 'SKU-002', category: 'Toiletries', unit: 'PCS', price: 32, costPrice: 26 },
-    { name: 'Close Up Toothpaste 100g', sku: 'SKU-003', category: 'Toiletries', unit: 'PCS', price: 60, costPrice: 48 },
-    { name: 'Fresh Milk Powder 1kg', sku: 'SKU-004', category: 'Dairy', unit: 'KG', price: 650, costPrice: 580 },
-    { name: 'Rupchanda Soybean Oil 5L', sku: 'SKU-005', category: 'Grocery', unit: 'CTN', price: 850, costPrice: 780 },
-    { name: 'Fresh Salt 1kg', sku: 'SKU-006', category: 'Grocery', unit: 'KG', price: 40, costPrice: 32 },
-    { name: 'Pran Mustard Oil 1L', sku: 'SKU-007', category: 'Grocery', unit: 'PCS', price: 210, costPrice: 185 },
-    { name: 'Tibet Fair Cream 50g', sku: 'SKU-008', category: 'Cosmetics', unit: 'PCS', price: 55, costPrice: 42 },
-    { name: 'Marks Biscuit 200g', sku: 'SKU-009', category: 'Snacks', unit: 'CTN', price: 45, costPrice: 36 },
-    { name: 'Ispahani Tea 400g', sku: 'SKU-010', category: 'Grocery', unit: 'PCS', price: 280, costPrice: 240 },
-    { name: 'Square Napkin Pack', sku: 'SKU-011', category: 'Toiletries', unit: 'PCS', price: 25, costPrice: 18 },
-    { name: 'ACI Aerosol 300ml', sku: 'SKU-012', category: 'Household', unit: 'PCS', price: 320, costPrice: 275 },
+    {
+      name: 'Lux Soap 100g',
+      sku: 'SKU-001',
+      category: 'Toiletries',
+      unit: 'PCS',
+      price: 35,
+      costPrice: 28,
+    },
+    {
+      name: 'Lifebuoy Soap 100g',
+      sku: 'SKU-002',
+      category: 'Toiletries',
+      unit: 'PCS',
+      price: 32,
+      costPrice: 26,
+    },
+    {
+      name: 'Close Up Toothpaste 100g',
+      sku: 'SKU-003',
+      category: 'Toiletries',
+      unit: 'PCS',
+      price: 60,
+      costPrice: 48,
+    },
+    {
+      name: 'Fresh Milk Powder 1kg',
+      sku: 'SKU-004',
+      category: 'Dairy',
+      unit: 'KG',
+      price: 650,
+      costPrice: 580,
+    },
+    {
+      name: 'Rupchanda Soybean Oil 5L',
+      sku: 'SKU-005',
+      category: 'Grocery',
+      unit: 'CTN',
+      price: 850,
+      costPrice: 780,
+    },
+    {
+      name: 'Fresh Salt 1kg',
+      sku: 'SKU-006',
+      category: 'Grocery',
+      unit: 'KG',
+      price: 40,
+      costPrice: 32,
+    },
+    {
+      name: 'Pran Mustard Oil 1L',
+      sku: 'SKU-007',
+      category: 'Grocery',
+      unit: 'PCS',
+      price: 210,
+      costPrice: 185,
+    },
+    {
+      name: 'Tibet Fair Cream 50g',
+      sku: 'SKU-008',
+      category: 'Cosmetics',
+      unit: 'PCS',
+      price: 55,
+      costPrice: 42,
+    },
+    {
+      name: 'Marks Biscuit 200g',
+      sku: 'SKU-009',
+      category: 'Snacks',
+      unit: 'CTN',
+      price: 45,
+      costPrice: 36,
+    },
+    {
+      name: 'Ispahani Tea 400g',
+      sku: 'SKU-010',
+      category: 'Grocery',
+      unit: 'PCS',
+      price: 280,
+      costPrice: 240,
+    },
+    {
+      name: 'Square Napkin Pack',
+      sku: 'SKU-011',
+      category: 'Toiletries',
+      unit: 'PCS',
+      price: 25,
+      costPrice: 18,
+    },
+    {
+      name: 'ACI Aerosol 300ml',
+      sku: 'SKU-012',
+      category: 'Household',
+      unit: 'PCS',
+      price: 320,
+      costPrice: 275,
+    },
   ];
 
   const products = [];
@@ -105,17 +189,67 @@ async function main() {
   }
 
   const retailerData = [
-    { shopName: 'Karim Store', ownerName: 'Karim Uddin', phone: '01710000001', address: 'Mirpur, Dhaka', routeArea: 'Mirpur', creditLimit: 50000, dueBalance: 0 },
-    { shopName: 'Rahim General Store', ownerName: 'Abdur Rahim', phone: '01710000002', address: 'Mohammadpur, Dhaka', routeArea: 'Mohammadpur', creditLimit: 40000, dueBalance: 38500 },
-    { shopName: 'Nabi Bhandar', ownerName: 'Nabi Hossain', phone: '01710000003', address: 'Gulshan, Dhaka', routeArea: 'Gulshan', creditLimit: 100000, dueBalance: 25000 },
-    { shopName: 'Anowar Store', ownerName: 'Anowar Islam', phone: '01710000004', address: 'Agrabad, Chattogram', routeArea: 'Agrabad', creditLimit: 60000, dueBalance: 12000 },
-    { shopName: 'City Traders', ownerName: 'Jashim Uddin', phone: '01710000005', address: 'GEC, Chattogram', routeArea: 'GEC', creditLimit: 75000, dueBalance: 0 },
-    { shopName: 'Momin Store', ownerName: 'Momin Ahmed', phone: '01710000006', address: 'Panchlaish, Chattogram', routeArea: 'Panchlaish', creditLimit: 30000, dueBalance: 5000 },
+    {
+      shopName: 'Karim Store',
+      ownerName: 'Karim Uddin',
+      phone: '01710000001',
+      address: 'Mirpur, Dhaka',
+      routeArea: 'Mirpur',
+      creditLimit: 50000,
+      dueBalance: 0,
+    },
+    {
+      shopName: 'Rahim General Store',
+      ownerName: 'Abdur Rahim',
+      phone: '01710000002',
+      address: 'Mohammadpur, Dhaka',
+      routeArea: 'Mohammadpur',
+      creditLimit: 40000,
+      dueBalance: 38500,
+    },
+    {
+      shopName: 'Nabi Bhandar',
+      ownerName: 'Nabi Hossain',
+      phone: '01710000003',
+      address: 'Gulshan, Dhaka',
+      routeArea: 'Gulshan',
+      creditLimit: 100000,
+      dueBalance: 25000,
+    },
+    {
+      shopName: 'Anowar Store',
+      ownerName: 'Anowar Islam',
+      phone: '01710000004',
+      address: 'Agrabad, Chattogram',
+      routeArea: 'Agrabad',
+      creditLimit: 60000,
+      dueBalance: 12000,
+    },
+    {
+      shopName: 'City Traders',
+      ownerName: 'Jashim Uddin',
+      phone: '01710000005',
+      address: 'GEC, Chattogram',
+      routeArea: 'GEC',
+      creditLimit: 75000,
+      dueBalance: 0,
+    },
+    {
+      shopName: 'Momin Store',
+      ownerName: 'Momin Ahmed',
+      phone: '01710000006',
+      address: 'Panchlaish, Chattogram',
+      routeArea: 'Panchlaish',
+      creditLimit: 30000,
+      dueBalance: 5000,
+    },
   ];
 
   const retailers = [];
   for (const r of retailerData) {
-    retailers.push(await prisma.retailer.upsert({ where: { phone: r.phone }, update: {}, create: r }));
+    retailers.push(
+      await prisma.retailer.upsert({ where: { phone: r.phone }, update: {}, create: r }),
+    );
   }
 
   const existingOrder = await prisma.order.findUnique({ where: { invoiceNo: 'INV-SEED-0001' } });
@@ -155,7 +289,16 @@ async function main() {
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.UNPAID,
-        items: { create: [{ productId: products[1].id, quantity, unitPrice: Number(products[1].price), subTotal: Number(products[1].price) * quantity }] },
+        items: {
+          create: [
+            {
+              productId: products[1].id,
+              quantity,
+              unitPrice: Number(products[1].price),
+              subTotal: Number(products[1].price) * quantity,
+            },
+          ],
+        },
       },
     });
 
@@ -172,7 +315,16 @@ async function main() {
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: OrderStatus.APPROVED,
         paymentStatus: PaymentStatus.UNPAID,
-        items: { create: [{ productId: products[2].id, quantity, unitPrice: Number(products[2].price), subTotal: Number(products[2].price) * quantity }] },
+        items: {
+          create: [
+            {
+              productId: products[2].id,
+              quantity,
+              unitPrice: Number(products[2].price),
+              subTotal: Number(products[2].price) * quantity,
+            },
+          ],
+        },
       },
     });
   }

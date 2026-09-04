@@ -1,5 +1,5 @@
+import { OrderStatus, PaymentStatus, type Prisma, Role } from '@prisma/client';
 import httpStatus from 'http-status';
-import { OrderStatus, PaymentStatus, type Prisma, Role } from '../../generated/prisma/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { generateInvoiceNo } from '../../utils/generateInvoiceNo.js';
 import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';

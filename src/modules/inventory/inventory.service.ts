@@ -1,5 +1,5 @@
+import { Role } from '@prisma/client';
 import httpStatus from 'http-status';
-import { Role } from '../../generated/prisma/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { prisma } from '../../utils/prisma.js';
 import { createAuditLog } from '../audit/audit.service.js';

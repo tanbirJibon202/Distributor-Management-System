@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/index.js';
+import type { Prisma } from '@prisma/client';
 import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { prisma } from '../../utils/prisma.js';
 

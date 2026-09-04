@@ -1,5 +1,5 @@
+import type { Prisma } from '@prisma/client';
 import httpStatus from 'http-status';
-import type { Prisma } from '../../generated/prisma/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { prisma } from '../../utils/prisma.js';

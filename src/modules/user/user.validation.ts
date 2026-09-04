@@ -1,5 +1,5 @@
+import { Role } from '@prisma/client';
 import { z } from 'zod';
-import { Role } from '../../generated/prisma/index.js';
 
 const updateMeSchema = z.object({
   body: z.object({

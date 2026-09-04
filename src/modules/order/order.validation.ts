@@ -1,5 +1,5 @@
+import { OrderStatus } from '@prisma/client';
 import { z } from 'zod';
-import { OrderStatus } from '../../generated/prisma/index.js';
 
 const createOrderSchema = z.object({
   body: z.object({

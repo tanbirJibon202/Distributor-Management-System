@@ -1,8 +1,8 @@
+import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import httpStatus from 'http-status';
 import config from '../../config/index.js';
-import { Role } from '../../generated/prisma/index.js';
 import { AppError } from '../../utils/AppError.js';
 import {
   type JwtPayload,

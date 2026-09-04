@@ -1,9 +1,9 @@
+import { Prisma } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import jwt from 'jsonwebtoken';
 import { ZodError } from 'zod';
 import config from '../config/index.js';
-import { Prisma } from '../generated/prisma/index.js';
 import { AppError } from '../utils/AppError.js';
 
 type ErrorDetail = { path: string; message: string };

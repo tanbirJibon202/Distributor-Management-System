@@ -1,5 +1,5 @@
+import { Role } from '@prisma/client';
 import { Router } from 'express';
-import { Role } from '../../generated/prisma/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { AuditController } from './audit.controller.js';

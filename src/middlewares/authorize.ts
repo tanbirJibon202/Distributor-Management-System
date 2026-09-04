@@ -1,6 +1,6 @@
+import type { Role } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
-import type { Role } from '../generated/prisma/index.js';
 import { AppError } from '../utils/AppError.js';
 
 export const authorize = (...roles: Role[]) => {

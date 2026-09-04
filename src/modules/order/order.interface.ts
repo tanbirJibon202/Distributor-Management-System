@@ -1,4 +1,4 @@
-import { OrderStatus } from '../../generated/prisma/index.js';
+import { OrderStatus } from '@prisma/client';
 
 export type CreateOrderItemInput = {
   productId: string;
