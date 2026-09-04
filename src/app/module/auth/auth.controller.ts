@@ -60,6 +60,17 @@ const googleAuth = catchAsync(async (req, res) => {
   });
 });
 
+const logout = catchAsync(async (_req, res) => {
+  res.clearCookie('refreshToken', { ...REFRESH_COOKIE_OPTIONS, maxAge: undefined });
+  res.clearCookie('accessToken', { ...REFRESH_COOKIE_OPTIONS, maxAge: undefined });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Logged out successfully',
+    data: null,
+  });
+});
+
 const getMe = catchAsync(async (req, res) => {
   const result = await AuthService.getMe(req.user!.userId);
 
@@ -70,4 +81,4 @@ const getMe = catchAsync(async (req, res) => {
   });
 });
 
-export const AuthController = { register, login, refreshToken, googleAuth, getMe };
+export const AuthController = { register, login, refreshToken, googleAuth, logout, getMe };
