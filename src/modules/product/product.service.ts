@@ -1,9 +1,9 @@
 import httpStatus from 'http-status';
+import type { Prisma } from '../../generated/prisma/index.js';
+import { AppError } from '../../utils/AppError.js';
+import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { prisma } from '../../utils/prisma.js';
 import { redisClient } from '../../utils/redis.js';
-import { AppError } from '../../utils/AppError.js';
-import { getPaginationParams, buildMeta } from '../../utils/pagination.js';
-import type { Prisma } from '../../generated/prisma/index.js';
 
 const CACHE_TTL_SECONDS = 300;
 const CACHE_PREFIX = 'products:';

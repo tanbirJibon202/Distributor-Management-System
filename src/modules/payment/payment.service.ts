@@ -1,8 +1,8 @@
 import httpStatus from 'http-status';
-import { prisma } from '../../utils/prisma.js';
-import { AppError } from '../../utils/AppError.js';
-import { createAuditLog } from '../audit/audit.service.js';
 import { PaymentMethod, PaymentStatus } from '../../generated/prisma/index.js';
+import { AppError } from '../../utils/AppError.js';
+import { prisma } from '../../utils/prisma.js';
+import { createAuditLog } from '../audit/audit.service.js';
 import { BkashClient } from './bkash.client.js';
 
 const initiatePayment = async (actorId: string, orderId: string) => {
@@ -97,7 +97,9 @@ const handleCallback = async (paymentID: string, status: string) => {
   const order = payment.order;
   const newPaidAmount = Number(order.paidAmount) + executedAmount;
   const newPaymentStatus =
-    newPaidAmount >= Number(order.payableAmount) ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
+    newPaidAmount >= Number(order.payableAmount)
+      ? PaymentStatus.PAID
+      : PaymentStatus.PARTIALLY_PAID;
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.payment.update({

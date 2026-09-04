@@ -25,7 +25,7 @@ const getProducts = catchAsync(async (req, res) => {
 });
 
 const getProductById = catchAsync(async (req, res) => {
-  const result = await ProductService.getProductById(req.params.id);
+  const result = await ProductService.getProductById(req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -35,7 +35,7 @@ const getProductById = catchAsync(async (req, res) => {
 });
 
 const deleteProduct = catchAsync(async (req, res) => {
-  const result = await ProductService.deleteProduct(req.params.id);
+  const result = await ProductService.deleteProduct(req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

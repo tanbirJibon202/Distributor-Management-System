@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
-import { catchAsync } from '../utils/catchAsync.js';
 import { AppError } from '../utils/AppError.js';
-import { verifyAccessToken, type JwtPayload } from '../utils/jwt.js';
+import { catchAsync } from '../utils/catchAsync.js';
+import { type JwtPayload, verifyAccessToken } from '../utils/jwt.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

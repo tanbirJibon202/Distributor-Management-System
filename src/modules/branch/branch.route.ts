@@ -1,8 +1,8 @@
 import { Router } from 'express';
+import { Role } from '../../generated/prisma/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validateRequest } from '../../middlewares/validateRequest.js';
-import { Role } from '../../generated/prisma/index.js';
 import { BranchController } from './branch.controller.js';
 import { BranchValidation } from './branch.validation.js';
 

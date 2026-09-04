@@ -1,8 +1,8 @@
 import { Router } from 'express';
+import { Role } from '../../generated/prisma/index.js';
 import { auth } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/authorize.js';
 import { validateRequest } from '../../middlewares/validateRequest.js';
-import { Role } from '../../generated/prisma/index.js';
 import { InventoryController } from './inventory.controller.js';
 import { InventoryValidation } from './inventory.validation.js';
 

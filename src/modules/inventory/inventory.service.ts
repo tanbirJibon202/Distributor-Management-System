@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
-import { prisma } from '../../utils/prisma.js';
-import { AppError } from '../../utils/AppError.js';
 import { Role } from '../../generated/prisma/index.js';
+import { AppError } from '../../utils/AppError.js';
+import { prisma } from '../../utils/prisma.js';
 import { createAuditLog } from '../audit/audit.service.js';
 import type { AdjustInventoryInput, RequestActor } from './inventory.interface.js';
 
@@ -42,7 +42,12 @@ const adjustInventory = async (
       action: 'INVENTORY_ADJUST',
       entity: 'BranchInventory',
       entityId: inventory.id,
-      details: { productId: input.productId, branchId: input.branchId, quantity: input.quantity, reason: input.reason },
+      details: {
+        productId: input.productId,
+        branchId: input.branchId,
+        quantity: input.quantity,
+        reason: input.reason,
+      },
       ipAddress,
     });
 

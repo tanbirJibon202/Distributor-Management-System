@@ -1,6 +1,11 @@
 import { prisma } from '../../utils/prisma.js';
 
-const createBranch = async (data: { name: string; code: string; type: string; location: string }) => {
+const createBranch = async (data: {
+  name: string;
+  code: string;
+  type: string;
+  location: string;
+}) => {
   return prisma.branch.create({ data });
 };
 

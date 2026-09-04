@@ -28,11 +28,7 @@ router.post(
   AuthController.login,
 );
 router.post('/refresh-token', AuthController.refreshToken);
-router.post(
-  '/google',
-  validateRequest(AuthValidation.googleAuthSchema),
-  AuthController.googleAuth,
-);
+router.post('/google', validateRequest(AuthValidation.googleAuthSchema), AuthController.googleAuth);
 router.get('/me', auth, AuthController.getMe);
 
 export const AuthRoutes = router;

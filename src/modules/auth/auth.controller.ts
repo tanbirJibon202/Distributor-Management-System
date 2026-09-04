@@ -1,8 +1,8 @@
 import httpStatus from 'http-status';
+import config from '../../config/index.js';
+import { AppError } from '../../utils/AppError.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
-import { AppError } from '../../utils/AppError.js';
-import config from '../../config/index.js';
 import { AuthService } from './auth.service.js';
 
 const REFRESH_COOKIE_OPTIONS = {

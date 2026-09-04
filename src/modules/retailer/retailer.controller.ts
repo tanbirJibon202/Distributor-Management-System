@@ -14,7 +14,7 @@ const createRetailer = catchAsync(async (req, res) => {
 });
 
 const getCreditStatus = catchAsync(async (req, res) => {
-  const result = await RetailerService.getCreditStatus(req.params.id);
+  const result = await RetailerService.getCreditStatus(req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

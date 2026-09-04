@@ -1,13 +1,13 @@
 import { Router } from 'express';
+import { AuditRoutes } from '../modules/audit/audit.route.js';
 import { AuthRoutes } from '../modules/auth/auth.route.js';
-import { UserRoutes } from '../modules/user/user.route.js';
 import { BranchRoutes } from '../modules/branch/branch.route.js';
-import { ProductRoutes } from '../modules/product/product.route.js';
 import { InventoryRoutes } from '../modules/inventory/inventory.route.js';
-import { RetailerRoutes } from '../modules/retailer/retailer.route.js';
 import { OrderRoutes } from '../modules/order/order.route.js';
 import { PaymentRoutes } from '../modules/payment/payment.route.js';
-import { AuditRoutes } from '../modules/audit/audit.route.js';
+import { ProductRoutes } from '../modules/product/product.route.js';
+import { RetailerRoutes } from '../modules/retailer/retailer.route.js';
+import { UserRoutes } from '../modules/user/user.route.js';
 
 const router = Router();
 
@@ -24,6 +24,8 @@ const moduleRoutes = [
   { path: '/admin/audit-logs', route: AuditRoutes },
 ];
 
-moduleRoutes.forEach(({ path, route }) => router.use(path, route));
+for (const { path, route } of moduleRoutes) {
+  router.use(path, route);
+}
 
 export default router;

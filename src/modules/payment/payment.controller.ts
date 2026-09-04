@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
+import { AppError } from '../../utils/AppError.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
-import { AppError } from '../../utils/AppError.js';
 import { PaymentService } from './payment.service.js';
 
 const initiatePayment = catchAsync(async (req, res) => {

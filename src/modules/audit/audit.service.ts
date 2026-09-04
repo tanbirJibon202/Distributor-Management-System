@@ -1,6 +1,6 @@
 import type { Prisma } from '../../generated/prisma/index.js';
+import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { prisma } from '../../utils/prisma.js';
-import { getPaginationParams, buildMeta, type PaginationQuery } from '../../utils/pagination.js';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -9,7 +9,7 @@ type CreateAuditLogInput = {
   action: string;
   entity: string;
   entityId: string;
-  details?: Record<string, unknown>;
+  details?: Prisma.InputJsonValue;
   ipAddress?: string | null;
 };
 

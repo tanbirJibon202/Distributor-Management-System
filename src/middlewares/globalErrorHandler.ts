@@ -1,10 +1,10 @@
-import httpStatus from 'http-status';
 import type { NextFunction, Request, Response } from 'express';
-import { ZodError } from 'zod';
+import httpStatus from 'http-status';
 import jwt from 'jsonwebtoken';
+import { ZodError } from 'zod';
+import config from '../config/index.js';
 import { Prisma } from '../generated/prisma/index.js';
 import { AppError } from '../utils/AppError.js';
-import config from '../config/index.js';
 
 type ErrorDetail = { path: string; message: string };
 
@@ -14,7 +14,7 @@ export const globalErrorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
-  let statusCode = httpStatus.INTERNAL_SERVER_ERROR;
+  let statusCode: number = httpStatus.INTERNAL_SERVER_ERROR;
   let message = 'Something went wrong';
   let errors: ErrorDetail[] = [];
 
@@ -51,8 +51,6 @@ export const globalErrorHandler = (
     success: false,
     message,
     ...(errors.length ? { errors } : {}),
-    ...(config.node_env === 'development' && error instanceof Error
-      ? { stack: error.stack }
-      : {}),
+    ...(config.node_env === 'development' && error instanceof Error ? { stack: error.stack } : {}),
   });
 };

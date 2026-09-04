@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
-import { prisma } from '../../utils/prisma.js';
-import { AppError } from '../../utils/AppError.js';
 import { Role } from '../../generated/prisma/index.js';
+import { AppError } from '../../utils/AppError.js';
+import { prisma } from '../../utils/prisma.js';
 import { createAuditLog } from '../audit/audit.service.js';
 
 const userPublicSelect = {

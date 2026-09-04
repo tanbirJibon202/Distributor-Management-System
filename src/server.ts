@@ -1,4 +1,4 @@
-import type { Server } from 'http';
+import type { Server } from 'node:http';
 import app from './app.js';
 import config from './config/index.js';
 import { prisma } from './utils/prisma.js';

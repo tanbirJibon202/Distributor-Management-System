@@ -1,15 +1,23 @@
 import httpStatus from 'http-status';
-import { prisma } from '../../utils/prisma.js';
+import { OrderStatus, PaymentStatus, type Prisma, Role } from '../../generated/prisma/index.js';
 import { AppError } from '../../utils/AppError.js';
 import { generateInvoiceNo } from '../../utils/generateInvoiceNo.js';
-import { getPaginationParams, buildMeta, type PaginationQuery } from '../../utils/pagination.js';
+import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';
+import { prisma } from '../../utils/prisma.js';
 import { createAuditLog } from '../audit/audit.service.js';
-import { OrderStatus, PaymentStatus, Role, type Prisma } from '../../generated/prisma/index.js';
-import { ORDER_STATUS_TRANSITIONS, type CreateOrderInput, type RequestActor } from './order.interface.js';
+import {
+  type CreateOrderInput,
+  ORDER_STATUS_TRANSITIONS,
+  type RequestActor,
+} from './order.interface.js';
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-const createOrder = async (actor: RequestActor, input: CreateOrderInput, ipAddress?: string | null) => {
+const createOrder = async (
+  actor: RequestActor,
+  input: CreateOrderInput,
+  ipAddress?: string | null,
+) => {
   if (!actor.branchId) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Your account is not assigned to a branch');
   }
@@ -129,11 +137,15 @@ type OrderQuery = PaginationQuery & { status?: OrderStatus; sortOrder?: 'asc' | 
 const getOrders = async (actor: RequestActor, query: OrderQuery) => {
   const { page, limit, skip } = getPaginationParams(query);
 
+  if (actor.role === Role.BRANCH_MANAGER && !actor.branchId) {
+    throw new AppError(httpStatus.FORBIDDEN, 'Your account is not assigned to a branch');
+  }
+
   const where: Prisma.OrderWhereInput =
     actor.role === Role.SUPER_ADMIN
       ? {}
       : actor.role === Role.BRANCH_MANAGER
-        ? { branchId: actor.branchId }
+        ? { branchId: actor.branchId as string }
         : { srId: actor.id };
 
   if (query.status) where.status = query.status;
@@ -181,7 +193,10 @@ const updateOrderStatus = async (
   if (status === OrderStatus.CANCELLED) {
     const hasSuccessfulPayment = order.payments.some((p) => p.status === PaymentStatus.PAID);
     if (hasSuccessfulPayment) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Cannot cancel an order with a successful payment');
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        'Cannot cancel an order with a successful payment',
+      );
     }
 
     return prisma.$transaction(async (tx) => {

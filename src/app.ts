@@ -1,8 +1,8 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
-import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import httpStatus from 'http-status';
 import config from './config/index.js';
 import { globalErrorHandler } from './middlewares/globalErrorHandler.js';

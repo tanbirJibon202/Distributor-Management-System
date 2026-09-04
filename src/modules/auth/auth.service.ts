@@ -1,11 +1,16 @@
 import bcrypt from 'bcryptjs';
-import httpStatus from 'http-status';
 import { OAuth2Client } from 'google-auth-library';
-import { prisma } from '../../utils/prisma.js';
-import { AppError } from '../../utils/AppError.js';
+import httpStatus from 'http-status';
 import config from '../../config/index.js';
 import { Role } from '../../generated/prisma/index.js';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.js';
+import { AppError } from '../../utils/AppError.js';
+import {
+  type JwtPayload,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from '../../utils/jwt.js';
+import { prisma } from '../../utils/prisma.js';
 import type { AuthTokens, LoginInput, RegisterInput } from './auth.interface.js';
 
 const BCRYPT_ROUNDS = 12;
@@ -20,7 +25,12 @@ const userPublicSelect = {
   createdAt: true,
 } as const;
 
-const issueTokens = (user: { id: string; email: string; role: Role; branchId: string | null }): AuthTokens => {
+const issueTokens = (user: {
+  id: string;
+  email: string;
+  role: Role;
+  branchId: string | null;
+}): AuthTokens => {
   const payload = { id: user.id, email: user.email, role: user.role, branchId: user.branchId };
   return {
     accessToken: signAccessToken(payload),
@@ -78,7 +88,7 @@ const loginUser = async (input: LoginInput) => {
 };
 
 const refreshAccessToken = async (token: string) => {
-  let decoded;
+  let decoded: JwtPayload;
   try {
     decoded = verifyRefreshToken(token);
   } catch {

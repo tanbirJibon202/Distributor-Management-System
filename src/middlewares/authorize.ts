@@ -1,7 +1,7 @@
-import httpStatus from 'http-status';
 import type { NextFunction, Request, Response } from 'express';
-import { AppError } from '../utils/AppError.js';
+import httpStatus from 'http-status';
 import type { Role } from '../generated/prisma/index.js';
+import { AppError } from '../utils/AppError.js';
 
 export const authorize = (...roles: Role[]) => {
   return (req: Request, _res: Response, next: NextFunction) => {

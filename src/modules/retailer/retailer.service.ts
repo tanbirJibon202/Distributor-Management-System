@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
-import { prisma } from '../../utils/prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { prisma } from '../../utils/prisma.js';
 
 type CreateRetailerInput = {
   shopName: string;

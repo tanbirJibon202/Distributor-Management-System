@@ -16,7 +16,7 @@ const updateMe = catchAsync(async (req, res) => {
 const updateUserRole = catchAsync(async (req, res) => {
   const result = await UserService.updateUserRole(
     req.user!.id,
-    req.params.id,
+    req.params.id as string,
     req.body,
     req.ip,
   );
