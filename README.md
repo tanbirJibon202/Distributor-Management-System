@@ -46,7 +46,7 @@ boot if a required one (`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET
 | `GOOGLE_CLIENT_ID` | Required only for `POST /auth/google` |
 | `REDIS_URL` | Used for the product-list cache and the bKash token cache |
 | `BKASH_*` | bKash sandbox/production credentials — required only for the payment flow |
-| `SUPER_ADMIN_*` | Demo super-admin credentials used by `prisma/seed.ts` |
+| `SUPER_ADMIN_*` | Demo super-admin credentials used by `src/app/utils/seed.ts` |
 
 **3. Migrate and generate the Prisma client**
 
@@ -55,19 +55,17 @@ npx prisma migrate dev --name init
 npx prisma generate
 ```
 
-**4. Seed demo data** (idempotent — safe to re-run)
-
-```bash
-npm run seed
-```
-
-**5. Run the server**
+**4. Run the server**
 
 ```bash
 npm run dev
 ```
 
-## Demo credentials (from the seed script)
+Seeding runs automatically on boot (`seedSuperAdmin` and `seedDemoData` in
+`src/app/utils/seed.ts`). Every step is an upsert on a unique column, so booting against an
+existing database changes nothing.
+
+## Demo credentials (seeded on first boot)
 
 | Role | Email | Password |
 |---|---|---|
@@ -84,20 +82,25 @@ demoed immediately — and a few orders in different statuses.
 
 ```
 src/
-  app.ts                  express app + middleware chain
-  server.ts               bootstrap, db/redis connect, graceful shutdown
-  config/index.ts         env vars validated with Zod — fail fast on boot
-  modules/
-    auth/ user/ branch/ product/ inventory/ retailer/ order/ payment/ audit/
-      → each: route.ts, controller.ts, service.ts, (validation.ts / interface.ts)
-  middlewares/
-    auth.ts  authorize.ts  validateRequest.ts  globalErrorHandler.ts  notFound.ts
-  utils/
-    prisma.ts  redis.ts  sendResponse.ts  catchAsync.ts  AppError.ts
-    pagination.ts  generateInvoiceNo.ts  jwt.ts
-  routes/index.ts
+  app.ts                       express app, middleware chain, route mounting
+  server.ts                    bootstrap, db/redis connect, seeding, graceful shutdown
+  app/
+    config/index.ts            env vars validated with Zod — fail fast on boot
+    interfaces/index.ts        shared query/filter types
+    lib/                       external clients: prisma.ts, redis.ts, bkash.ts, googleAuth.ts
+    middleware/
+      checkAuth.ts             auth(...roles) — JWT verify + role guard in one
+      validateRequest.ts  globalErrorHandler.ts  notFound.ts
+    module/
+      auth/ user/ branch/ product/ inventory/ retailer/ order/ payment/ audit/
+        → each: <name>.route.ts, .controller.ts, .service.ts, (.validation.ts / .interface.ts)
+    utils/
+      AppError.ts  catchAsync.ts  sendResponse.ts  pagination.ts
+      generateInvoiceNo.ts  jwt.ts  seed.ts
+prisma.config.ts               points Prisma at the prisma/schema folder
 prisma/
-  schema.prisma  seed.ts
+  schema/                      split schema: schema, enums, user, branch, product,
+                               retailer, order, payment, audit
 ```
 
 **Controllers never call Prisma.** They parse `req`, call a service, and call `sendResponse`.
@@ -114,7 +117,7 @@ const where =
 
 ## The order transaction — the core technical challenge
 
-`POST /orders` (`src/modules/order/order.service.ts`) runs entirely inside one
+`POST /orders` (`src/app/module/order/order.service.ts`) runs entirely inside one
 `prisma.$transaction`, because three invariants have to hold together or not at all:
 
 1. **Prices are computed server-side** from the `Product` table — a client can never dictate
@@ -227,9 +230,8 @@ included when `NODE_ENV=development`.
 
 ```bash
 npm run dev     # tsx watch — auto-reload during development
-npm run build   # tsc typecheck + emit to dist/
+npm run build   # prisma generate + tsc typecheck and emit to dist/
 npm run start   # run the built server once
-npm run seed    # run prisma/seed.ts (idempotent)
 ```
 
 ## Deploying to Render

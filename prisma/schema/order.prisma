@@ -1,0 +1,43 @@
+model Order {
+  id            String         @id @default(uuid())
+  invoiceNo     String         @unique
+  branchId      String
+  srId          String
+  retailerId    String
+  totalAmount   Decimal        @db.Decimal(12, 2)
+  discount      Decimal        @default(0) @db.Decimal(12, 2)
+  payableAmount Decimal        @db.Decimal(12, 2)
+  paidAmount    Decimal        @default(0) @db.Decimal(12, 2)
+  dueDate       DateTime
+  status        OrderStatus    @default(PENDING)
+  paymentStatus PaymentStatus  @default(UNPAID)
+  paymentMethod PaymentMethod?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  branch   Branch      @relation(fields: [branchId], references: [id])
+  sr       User        @relation("SROrders", fields: [srId], references: [id])
+  retailer Retailer    @relation(fields: [retailerId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([branchId, status])
+  @@index([srId, createdAt])
+  @@index([retailerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  subTotal  Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}

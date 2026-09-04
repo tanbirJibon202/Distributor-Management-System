@@ -1,0 +1,18 @@
+model Retailer {
+  id          String    @id @default(uuid())
+  shopName    String
+  ownerName   String
+  phone       String    @unique
+  address     String
+  routeArea   String
+  creditLimit Decimal   @default(50000) @db.Decimal(12, 2)
+  dueBalance  Decimal   @default(0) @db.Decimal(12, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orders Order[]
+
+  @@index([routeArea])
+  @@map("retailers")
+}

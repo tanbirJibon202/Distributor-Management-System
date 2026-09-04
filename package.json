@@ -1,7 +1,7 @@
 {
 	"name": "dms-distributor-management-system",
 	"version": "1.0.0",
-	"description": "Cloud-based B2B distributor management system (DMS) backend — credit-based ordering, inventory, and bKash payments for FMCG/pharma distribution.",
+	"description": "Cloud-based B2B distributor management system (DMS) backend - credit-based ordering, inventory, and bKash payments for FMCG/pharma distribution.",
 	"main": "dist/src/server.js",
 	"type": "module",
 	"scripts": {
@@ -9,7 +9,6 @@
 		"build": "prisma generate && tsc",
 		"start": "node dist/src/server.js",
 		"postinstall": "prisma generate",
-		"seed": "tsx prisma/seed.ts",
 		"format:check": "npx @biomejs/biome format ./src",
 		"format:fix": "npx @biomejs/biome format --write ./src",
 		"lint:check": "npx @biomejs/biome lint ./src",
@@ -47,9 +46,6 @@
 		"prisma": "^6.9.0",
 		"tsx": "^4.19.3",
 		"typescript": "^5.7.3"
-	},
-	"prisma": {
-		"seed": "tsx prisma/seed.ts"
 	},
 	"allowScripts": {
 		"@biomejs/biome@1.9.4": true,

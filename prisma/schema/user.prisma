@@ -1,0 +1,26 @@
+// Soft-deleted rows keep their unique value but get `:deleted:<id>` appended
+// to email/sku/phone, so a fresh row can reuse the original value without
+// tripping the unique constraint. Always read/write the clean value through
+// the service layer; never expose the mutated value to a client.
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String? // nullable — Google-authenticated users have no password
+  phone     String?
+  role      Role      @default(FIELD_SR)
+  branchId  String?
+  googleId  String?   @unique
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  branch    Branch?    @relation(fields: [branchId], references: [id])
+  orders    Order[]    @relation("SROrders")
+  auditLogs AuditLog[]
+
+  @@index([email, role])
+  @@index([branchId, role])
+  @@map("users")
+}

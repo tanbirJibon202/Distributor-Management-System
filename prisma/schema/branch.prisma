@@ -1,0 +1,16 @@
+model Branch {
+  id        String    @id @default(uuid())
+  name      String
+  code      String    @unique
+  type      String // CENTRAL | DEPOT | BRANCH
+  location  String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  users       User[]
+  inventories BranchInventory[]
+  orders      Order[]
+
+  @@map("branches")
+}

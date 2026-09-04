@@ -1,0 +1,25 @@
+enum Role {
+  SUPER_ADMIN
+  BRANCH_MANAGER
+  FIELD_SR
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  FAILED
+}
+
+enum PaymentMethod {
+  BKASH
+  BANK_TRANSFER
+}
