@@ -7,6 +7,7 @@ import httpStatus from 'http-status';
 import config from './app/config/index.js';
 import { globalErrorHandler } from './app/middleware/globalErrorHandler.js';
 import { notFound } from './app/middleware/notFound.js';
+import { AnalyticsRoutes } from './app/module/analytics/analytics.route.js';
 import { AuditRoutes } from './app/module/audit/audit.route.js';
 import { AuthRoutes } from './app/module/auth/auth.route.js';
 import { BranchRoutes } from './app/module/branch/branch.route.js';
@@ -53,6 +54,7 @@ app.use('/api/v1/retailers', RetailerRoutes);
 app.use('/api/v1/orders', OrderRoutes);
 app.use('/api/v1/payments', PaymentRoutes);
 app.use('/api/v1/admin/audit-logs', AuditRoutes);
+app.use('/api/v1/admin/dashboard-stats', AnalyticsRoutes);
 
 // Basic route — goes through sendResponse so even the health check follows
 // the { success, message, data } contract every other endpoint uses.
