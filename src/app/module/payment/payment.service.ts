@@ -47,6 +47,28 @@ const initiatePayment = async (actorId: string, orderId: string) => {
   return { bkashURL: bkashPayment.bkashURL };
 };
 
+const getPaymentById = async (id: string) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id },
+    include: {
+      order: {
+        select: {
+          id: true,
+          invoiceNo: true,
+          payableAmount: true,
+          paidAmount: true,
+          paymentStatus: true,
+          status: true,
+        },
+      },
+    },
+  });
+  if (!payment) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Payment not found');
+  }
+  return payment;
+};
+
 const handleCallback = async (paymentID: string, status: string) => {
   const payment = await prisma.payment.findFirst({
     where: { gatewayPaymentId: paymentID },
@@ -135,4 +157,4 @@ const handleCallback = async (paymentID: string, status: string) => {
   return { message: 'Payment completed successfully', order: result };
 };
 
-export const PaymentService = { initiatePayment, handleCallback };
+export const PaymentService = { initiatePayment, getPaymentById, handleCallback };

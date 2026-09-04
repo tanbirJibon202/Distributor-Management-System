@@ -13,5 +13,6 @@ router.post(
   PaymentController.initiatePayment,
 );
 router.post('/callback', PaymentController.handleCallback);
+router.get('/:id', auth(), PaymentController.getPaymentById);
 
 export const PaymentRoutes = router;

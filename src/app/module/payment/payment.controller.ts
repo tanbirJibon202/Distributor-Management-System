@@ -14,6 +14,16 @@ const initiatePayment = catchAsync(async (req, res) => {
   });
 });
 
+const getPaymentById = catchAsync(async (req, res) => {
+  const result = await PaymentService.getPaymentById(req.params.id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Payment retrieved successfully',
+    data: result,
+  });
+});
+
 const handleCallback = catchAsync(async (req, res) => {
   const paymentID = (req.query.paymentID as string) ?? req.body.paymentID;
   const status = (req.query.status as string) ?? req.body.status;
@@ -31,4 +41,4 @@ const handleCallback = catchAsync(async (req, res) => {
   });
 });
 
-export const PaymentController = { initiatePayment, handleCallback };
+export const PaymentController = { initiatePayment, getPaymentById, handleCallback };
