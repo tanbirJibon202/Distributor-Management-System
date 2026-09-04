@@ -184,7 +184,10 @@ POST   /auth/register            POST   /auth/login
 POST   /auth/refresh-token       POST   /auth/google
 GET    /auth/me
 
+POST   /auth/logout
+
 PATCH  /users/me
+GET    /admin/users              SUPER_ADMIN — search + role/branch filter + pagination
 PATCH  /admin/users/:id/role     SUPER_ADMIN
 
 POST   /branches                 SUPER_ADMIN
@@ -193,22 +196,33 @@ GET    /branches
 POST   /products                 SUPER_ADMIN
 GET    /products                 pagination + search + filter + sort, Redis-cached
 GET    /products/:id
+PATCH  /products/:id             SUPER_ADMIN — invalidates cache
 DELETE /products/:id             SUPER_ADMIN — soft delete, invalidates cache
 
+GET    /inventory                branch-scoped, ?lowStock= + search + pagination
 PATCH  /inventory/adjust         BRANCH_MANAGER (own branch) | SUPER_ADMIN
 
 POST   /retailers                SUPER_ADMIN | BRANCH_MANAGER
+GET    /retailers                search + routeArea filter + pagination
 GET    /retailers/:id/credit-status
+DELETE /retailers/:id            SUPER_ADMIN | BRANCH_MANAGER — soft delete, blocked while due > 0
 
 POST   /orders                   FIELD_SR
 GET    /orders                   role-scoped, filter + pagination
+GET    /orders/:id               role-scoped — 403 on another SR's or branch's order
 PATCH  /orders/:id/status        BRANCH_MANAGER | SUPER_ADMIN
 
 POST   /payments/initiate
 POST   /payments/callback
+GET    /payments/:id             payment status tracking
 
 GET    /admin/audit-logs         SUPER_ADMIN
+GET    /admin/dashboard-stats    SUPER_ADMIN — totals, order status counts, revenue, low stock
 ```
+
+**31 endpoints in total**, covering authentication, profile/user management, core resource CRUD
+with soft deletes, business workflows (credit-checked ordering and the order state machine),
+search/filter/sort/pagination, the bKash payment lifecycle, and admin operations.
 
 ## Response conventions
 
