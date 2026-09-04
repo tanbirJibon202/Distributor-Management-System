@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: dms-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build && npx prisma migrate deploy
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: BKASH_BASE_URL
+        sync: false
+      - key: BKASH_USERNAME
+        sync: false
+      - key: BKASH_PASSWORD
+        sync: false
+      - key: BKASH_APP_KEY
+        sync: false
+      - key: BKASH_APP_SECRET
+        sync: false
+      - key: BKASH_CALLBACK_URL
+        sync: false

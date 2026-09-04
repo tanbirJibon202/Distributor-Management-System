@@ -232,6 +232,23 @@ npm run start   # run the built server once
 npm run seed    # run prisma/seed.ts (idempotent)
 ```
 
+## Deploying to Render
+
+Render is the deploy target rather than Vercel because this service needs a persistent
+process: it holds a Redis connection and has to receive bKash callbacks.
+
+`render.yaml` is a ready blueprint. Deploying manually instead:
+
+- **Build command:** `npm install && npm run build && npx prisma migrate deploy`
+- **Start command:** `npm run start`
+- **Health check path:** `/`
+
+`prisma generate` runs from `postinstall`, so the Prisma client is always generated in the
+deploy environment. Set `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGINS`, the `JWT_*` secrets, and
+the `BKASH_*` credentials in Render's environment settings — the app refuses to boot without
+the required ones. Point `BKASH_CALLBACK_URL` at the deployed
+`https://<your-service>.onrender.com/api/v1/payments/callback`.
+
 ## Out of scope for v1
 
 Deliberately not built, but the schema (e.g. `Branch.type`, `Order.dueDate`) is shaped so
