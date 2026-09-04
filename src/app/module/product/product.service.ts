@@ -131,6 +131,38 @@ const getProductById = async (id: string) => {
   return product;
 };
 
+type UpdateProductInput = Partial<Omit<CreateProductInput, 'sku'>>;
+
+const updateProduct = async (
+  actorId: string,
+  id: string,
+  data: UpdateProductInput,
+  ipAddress?: string | null,
+) => {
+  const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.product.update({ where: { id }, data });
+
+    await createAuditLog(tx, {
+      userId: actorId,
+      action: 'PRODUCT_UPDATE',
+      entity: 'Product',
+      entityId: id,
+      details: { sku: product.sku, changes: data },
+      ipAddress,
+    });
+
+    return result;
+  });
+
+  await invalidateProductCache();
+  return updated;
+};
+
 const deleteProduct = async (actorId: string, id: string, ipAddress?: string | null) => {
   const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
   if (!product) {
@@ -162,4 +194,10 @@ const deleteProduct = async (actorId: string, id: string, ipAddress?: string | n
   return result;
 };
 
-export const ProductService = { createProduct, getProducts, getProductById, deleteProduct };
+export const ProductService = {
+  createProduct,
+  getProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+};
