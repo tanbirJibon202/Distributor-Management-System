@@ -16,6 +16,7 @@ import { PaymentRoutes } from './app/module/payment/payment.route.js';
 import { ProductRoutes } from './app/module/product/product.route.js';
 import { RetailerRoutes } from './app/module/retailer/retailer.route.js';
 import { UserRoutes } from './app/module/user/user.route.js';
+import { sendResponse } from './app/utils/sendResponse.js';
 
 const app: Application = express();
 
@@ -53,11 +54,13 @@ app.use('/api/v1/orders', OrderRoutes);
 app.use('/api/v1/payments', PaymentRoutes);
 app.use('/api/v1/admin/audit-logs', AuditRoutes);
 
-// Basic route
+// Basic route — goes through sendResponse so even the health check follows
+// the { success, message, data } contract every other endpoint uses.
 app.get('/', (_req: Request, res: Response) => {
-  res.status(httpStatus.OK).json({
-    success: true,
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
     message: 'Welcome to DMS - Distributor Management System Backend',
+    data: { service: 'dms-backend', status: 'ok' },
   });
 });
 

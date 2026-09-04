@@ -47,10 +47,12 @@ export const globalErrorHandler = (
     message = error.message;
   }
 
+  // `errors` is always present, even when empty — the response contract is
+  // { success, message, errors } for every failure, whatever the cause.
   res.status(statusCode).json({
     success: false,
     message,
-    ...(errors.length ? { errors } : {}),
+    errors,
     ...(config.node_env === 'development' && error instanceof Error ? { stack: error.stack } : {}),
   });
 };
