@@ -1,15 +1,20 @@
 import { prisma } from './prisma.js';
+import type { Prisma } from '../generated/prisma/index.js';
+
+type QueryClient = typeof prisma | Prisma.TransactionClient;
 
 // INV-YYYYMMDD-XXXX — retried on the rare collision instead of trusting
-// randomness alone, since invoiceNo is a hard unique constraint.
-export const generateInvoiceNo = async (): Promise<string> => {
+// randomness alone, since invoiceNo is a hard unique constraint. Accepts a
+// transaction client so the check runs against the same transaction that
+// will insert the order, not a separate connection.
+export const generateInvoiceNo = async (client: QueryClient = prisma): Promise<string> => {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     const invoiceNo = `INV-${datePart}-${randomPart}`;
 
-    const existing = await prisma.order.findUnique({ where: { invoiceNo } });
+    const existing = await client.order.findUnique({ where: { invoiceNo } });
     if (!existing) return invoiceNo;
   }
 
