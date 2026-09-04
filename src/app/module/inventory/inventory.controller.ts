@@ -13,4 +13,18 @@ const adjustInventory = catchAsync(async (req, res) => {
   });
 });
 
-export const InventoryController = { adjustInventory };
+const getInventory = catchAsync(async (req, res) => {
+  const result = await InventoryService.getInventory(
+    req.user!,
+    req.query as Record<string, string>,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Inventory retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+export const InventoryController = { adjustInventory, getInventory };

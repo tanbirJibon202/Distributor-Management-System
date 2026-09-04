@@ -1,7 +1,8 @@
-import { Role } from '@prisma/client';
+import { type Prisma, Role } from '@prisma/client';
 import httpStatus from 'http-status';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { createAuditLog } from '../audit/audit.service.js';
 import type { AdjustInventoryInput, RequestActor } from './inventory.interface.js';
 
@@ -57,4 +58,55 @@ const adjustInventory = async (
   return result;
 };
 
-export const InventoryService = { adjustInventory };
+type InventoryQuery = {
+  page?: string;
+  limit?: string;
+  branchId?: string;
+  search?: string;
+  lowStock?: string;
+  sortOrder?: 'asc' | 'desc';
+};
+
+const getInventory = async (actor: RequestActor, query: InventoryQuery) => {
+  const { page, limit, skip } = getPaginationParams(query);
+
+  // A branch manager and an SR only ever see their own branch's stock; only a
+  // super admin can look across branches, and may narrow with ?branchId=.
+  const where: Prisma.BranchInventoryWhereInput =
+    actor.role === Role.SUPER_ADMIN
+      ? query.branchId
+        ? { branchId: query.branchId }
+        : {}
+      : { branchId: actor.branchId ?? '' };
+
+  where.product = { deletedAt: null };
+
+  if (query.search) {
+    where.product = {
+      deletedAt: null,
+      OR: [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { sku: { contains: query.search, mode: 'insensitive' } },
+      ],
+    };
+  }
+  if (query.lowStock) where.stock = { lte: Number(query.lowStock) };
+
+  const [inventory, total] = await Promise.all([
+    prisma.branchInventory.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { stock: query.sortOrder ?? 'asc' },
+      include: {
+        product: { select: { id: true, name: true, sku: true, unit: true, price: true } },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    }),
+    prisma.branchInventory.count({ where }),
+  ]);
+
+  return { meta: buildMeta(page, limit, total), data: inventory };
+};
+
+export const InventoryService = { adjustInventory, getInventory };

@@ -7,6 +7,8 @@ import { InventoryValidation } from './inventory.validation.js';
 
 const router = Router();
 
+router.get('/', auth(), InventoryController.getInventory);
+
 router.patch(
   '/adjust',
   auth(Role.BRANCH_MANAGER, Role.SUPER_ADMIN),
