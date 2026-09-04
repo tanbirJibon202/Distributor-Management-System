@@ -1,6 +1,7 @@
 import httpStatus from 'http-status';
 import { AppError } from '../../utils/AppError.js';
 import { prisma } from '../../utils/prisma.js';
+import { createAuditLog } from '../audit/audit.service.js';
 
 type CreateRetailerInput = {
   shopName: string;
@@ -11,8 +12,25 @@ type CreateRetailerInput = {
   creditLimit?: number;
 };
 
-const createRetailer = async (data: CreateRetailerInput) => {
-  return prisma.retailer.create({ data });
+const createRetailer = async (
+  actorId: string,
+  data: CreateRetailerInput,
+  ipAddress?: string | null,
+) => {
+  return prisma.$transaction(async (tx) => {
+    const retailer = await tx.retailer.create({ data });
+
+    await createAuditLog(tx, {
+      userId: actorId,
+      action: 'RETAILER_CREATE',
+      entity: 'Retailer',
+      entityId: retailer.id,
+      details: { shopName: retailer.shopName, phone: retailer.phone },
+      ipAddress,
+    });
+
+    return retailer;
+  });
 };
 
 const getCreditStatus = async (id: string) => {

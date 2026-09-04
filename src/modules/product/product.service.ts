@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { prisma } from '../../utils/prisma.js';
 import { redisClient } from '../../utils/redis.js';
+import { createAuditLog } from '../audit/audit.service.js';
 
 const CACHE_TTL_SECONDS = 300;
 const CACHE_PREFIX = 'products:';
@@ -57,8 +58,26 @@ const invalidateProductCache = async () => {
   }
 };
 
-const createProduct = async (data: CreateProductInput) => {
-  const product = await prisma.product.create({ data });
+const createProduct = async (
+  actorId: string,
+  data: CreateProductInput,
+  ipAddress?: string | null,
+) => {
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({ data });
+
+    await createAuditLog(tx, {
+      userId: actorId,
+      action: 'PRODUCT_CREATE',
+      entity: 'Product',
+      entityId: created.id,
+      details: { sku: created.sku, name: created.name },
+      ipAddress,
+    });
+
+    return created;
+  });
+
   await invalidateProductCache();
   return product;
 };
@@ -112,18 +131,31 @@ const getProductById = async (id: string) => {
   return product;
 };
 
-const deleteProduct = async (id: string) => {
+const deleteProduct = async (actorId: string, id: string, ipAddress?: string | null) => {
   const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
   if (!product) {
     throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
   }
 
-  const result = await prisma.product.update({
-    where: { id },
-    data: {
-      deletedAt: new Date(),
-      sku: `${product.sku}:deleted:${product.id}`,
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const deleted = await tx.product.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        sku: `${product.sku}:deleted:${product.id}`,
+      },
+    });
+
+    await createAuditLog(tx, {
+      userId: actorId,
+      action: 'PRODUCT_DELETE',
+      entity: 'Product',
+      entityId: id,
+      details: { sku: product.sku, name: product.name },
+      ipAddress,
+    });
+
+    return deleted;
   });
 
   await invalidateProductCache();

@@ -4,7 +4,7 @@ import { sendResponse } from '../../utils/sendResponse.js';
 import { RetailerService } from './retailer.service.js';
 
 const createRetailer = catchAsync(async (req, res) => {
-  const result = await RetailerService.createRetailer(req.body);
+  const result = await RetailerService.createRetailer(req.user!.id, req.body, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,

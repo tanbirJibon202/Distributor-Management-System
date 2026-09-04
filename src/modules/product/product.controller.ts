@@ -4,7 +4,7 @@ import { sendResponse } from '../../utils/sendResponse.js';
 import { ProductService } from './product.service.js';
 
 const createProduct = catchAsync(async (req, res) => {
-  const result = await ProductService.createProduct(req.body);
+  const result = await ProductService.createProduct(req.user!.id, req.body, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -35,7 +35,7 @@ const getProductById = catchAsync(async (req, res) => {
 });
 
 const deleteProduct = catchAsync(async (req, res) => {
-  const result = await ProductService.deleteProduct(req.params.id as string);
+  const result = await ProductService.deleteProduct(req.user!.id, req.params.id as string, req.ip);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
