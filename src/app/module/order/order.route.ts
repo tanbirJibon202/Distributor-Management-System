@@ -14,6 +14,7 @@ router.post(
   OrderController.createOrder,
 );
 router.get('/', auth(), OrderController.getOrders);
+router.get('/:id', auth(), OrderController.getOrderById);
 router.patch(
   '/:id/status',
   auth(Role.BRANCH_MANAGER, Role.SUPER_ADMIN),

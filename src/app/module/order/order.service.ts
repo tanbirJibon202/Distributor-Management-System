@@ -164,6 +164,32 @@ const getOrders = async (actor: RequestActor, query: OrderQuery) => {
   return { meta: buildMeta(page, limit, total), data: orders };
 };
 
+const getOrderById = async (actor: RequestActor, orderId: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: { include: { product: { select: { id: true, name: true, sku: true, unit: true } } } },
+      retailer: true,
+      branch: { select: { id: true, name: true, code: true } },
+      sr: { select: { id: true, name: true, email: true } },
+      payments: true,
+    },
+  });
+  if (!order) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
+  }
+
+  // Same scoping rule as the list endpoint: a manager is confined to their
+  // branch and an SR to their own orders, so one can't read another's by id.
+  const isOwnBranch = actor.role === Role.BRANCH_MANAGER && actor.branchId === order.branchId;
+  const isOwnOrder = actor.role === Role.FIELD_SR && actor.userId === order.srId;
+  if (actor.role !== Role.SUPER_ADMIN && !isOwnBranch && !isOwnOrder) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this order');
+  }
+
+  return order;
+};
+
 const updateOrderStatus = async (
   actor: RequestActor,
   orderId: string,
@@ -247,4 +273,4 @@ const updateOrderStatus = async (
   });
 };
 
-export const OrderService = { createOrder, getOrders, updateOrderStatus };
+export const OrderService = { createOrder, getOrders, getOrderById, updateOrderStatus };
