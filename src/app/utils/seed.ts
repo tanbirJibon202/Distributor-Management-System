@@ -1,4 +1,4 @@
-import { OrderStatus, PaymentStatus, Role } from '@prisma/client';
+import { OrderStatus, PaymentStatus, Role } from '../../generated/prisma/client.js';
 import bcrypt from 'bcryptjs';
 import config from '../config/index.js';
 import { prisma } from '../lib/prisma.js';
@@ -37,6 +37,7 @@ export const seedSuperAdmin = async () => {
 };
 
 export const seedDemoData = async () => {
+  if (config.node_env !== 'development') return;
   try {
     const dhaka = await prisma.branch.upsert({
       where: { code: 'DHK-01' },

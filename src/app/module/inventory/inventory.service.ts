@@ -1,4 +1,4 @@
-import { type Prisma, Role } from '@prisma/client';
+import { type BranchInventory, type Prisma, Role } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
@@ -23,20 +23,27 @@ const adjustInventory = async (
   if (!product) throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
 
   const result = await prisma.$transaction(async (tx) => {
-    const existing = await tx.branchInventory.findUnique({
-      where: { branchId_productId: { branchId: input.branchId, productId: input.productId } },
-    });
-
-    const newStock = (existing?.stock ?? 0) + input.quantity;
-    if (newStock < 0) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Adjustment would take stock below zero');
+    const key = { branchId_productId: { branchId: input.branchId, productId: input.productId } };
+    let inventory: BranchInventory;
+    if (input.quantity > 0) {
+      inventory = await tx.branchInventory.upsert({
+        where: key,
+        update: { stock: { increment: input.quantity } },
+        create: { branchId: input.branchId, productId: input.productId, stock: input.quantity },
+      });
+    } else {
+      const adjusted = await tx.branchInventory.updateMany({
+        where: {
+          branchId: input.branchId,
+          productId: input.productId,
+          stock: { gte: -input.quantity },
+        },
+        data: { stock: { increment: input.quantity } },
+      });
+      if (!adjusted.count)
+        throw new AppError(httpStatus.BAD_REQUEST, 'Adjustment would take stock below zero');
+      inventory = await tx.branchInventory.findUniqueOrThrow({ where: key });
     }
-
-    const inventory = await tx.branchInventory.upsert({
-      where: { branchId_productId: { branchId: input.branchId, productId: input.productId } },
-      update: { stock: newStock },
-      create: { branchId: input.branchId, productId: input.productId, stock: newStock },
-    });
 
     await createAuditLog(tx, {
       userId: actor.userId,

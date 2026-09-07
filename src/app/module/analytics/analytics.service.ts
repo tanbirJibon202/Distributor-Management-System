@@ -1,4 +1,4 @@
-import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus } from '../../../generated/prisma/client.js';
 import { prisma } from '../../lib/prisma.js';
 
 const LOW_STOCK_THRESHOLD = 20;
@@ -26,7 +26,13 @@ const getDashboardStats = async () => {
     // invoiced — orders sit on credit until a payment executes.
     prisma.order.aggregate({ _sum: { paidAmount: true } }),
     prisma.retailer.aggregate({ where: { deletedAt: null }, _sum: { dueBalance: true } }),
-    prisma.branchInventory.count({ where: { stock: { lte: LOW_STOCK_THRESHOLD } } }),
+    prisma.branchInventory.count({
+      where: {
+        stock: { lte: LOW_STOCK_THRESHOLD },
+        product: { deletedAt: null },
+        branch: { deletedAt: null },
+      },
+    }),
     prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -50,7 +56,10 @@ const getDashboardStats = async () => {
   );
 
   const unpaidOrders = await prisma.order.count({
-    where: { paymentStatus: { in: [PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID] } },
+    where: {
+      status: { not: OrderStatus.CANCELLED },
+      paymentStatus: { in: [PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID] },
+    },
   });
 
   return {

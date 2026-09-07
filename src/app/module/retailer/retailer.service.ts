@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
@@ -9,6 +9,7 @@ type CreateRetailerInput = {
   shopName: string;
   ownerName: string;
   phone: string;
+  email?: string;
   address: string;
   routeArea: string;
   creditLimit?: number;
@@ -72,21 +73,22 @@ const getRetailers = async (query: RetailerQuery) => {
 };
 
 const deleteRetailer = async (actorId: string, id: string, ipAddress?: string | null) => {
-  const retailer = await prisma.retailer.findFirst({ where: { id, deletedAt: null } });
-  if (!retailer) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Retailer not found');
-  }
-
-  // An outstanding balance is money still owed — deleting the shop row would
-  // quietly erase that debt, so it has to be settled first.
-  if (Number(retailer.dueBalance) > 0) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      `Cannot delete a retailer with an outstanding due balance of ${Number(retailer.dueBalance).toFixed(2)}`,
-    );
-  }
-
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM retailers WHERE id = ${id} FOR UPDATE`;
+    const retailer = await tx.retailer.findFirst({ where: { id, deletedAt: null } });
+    if (!retailer) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Retailer not found');
+    }
+
+    // An outstanding balance is money still owed — deleting the shop row would
+    // quietly erase that debt, so it has to be settled first.
+    if (Number(retailer.dueBalance) > 0) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Cannot delete a retailer with an outstanding due balance of ${Number(retailer.dueBalance).toFixed(2)}`,
+      );
+    }
+
     const deleted = await tx.retailer.update({
       where: { id },
       data: {

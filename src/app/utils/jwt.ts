@@ -1,4 +1,4 @@
-import type { Role } from '@prisma/client';
+import type { Role } from '../../generated/prisma/client.js';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import config from '../config/index.js';
 
@@ -7,6 +7,7 @@ export type JwtPayload = {
   email: string;
   role: Role;
   branchId: string | null;
+  tokenVersion?: number;
 };
 
 export const signAccessToken = (payload: JwtPayload) =>

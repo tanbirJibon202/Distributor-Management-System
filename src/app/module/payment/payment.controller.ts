@@ -1,11 +1,11 @@
 import httpStatus from 'http-status';
-import { AppError } from '../../utils/AppError.js';
+import { PaymentValidation } from './payment.validation.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
 import { PaymentService } from './payment.service.js';
 
 const initiatePayment = catchAsync(async (req, res) => {
-  const result = await PaymentService.initiatePayment(req.user!.userId, req.body.orderId);
+  const result = await PaymentService.initiatePayment(req.user!, req.body.orderId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -15,7 +15,7 @@ const initiatePayment = catchAsync(async (req, res) => {
 });
 
 const getPaymentById = catchAsync(async (req, res) => {
-  const result = await PaymentService.getPaymentById(req.params.id as string);
+  const result = await PaymentService.getPaymentById(req.user!, req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -25,12 +25,10 @@ const getPaymentById = catchAsync(async (req, res) => {
 });
 
 const handleCallback = catchAsync(async (req, res) => {
-  const paymentID = (req.query.paymentID as string) ?? req.body.paymentID;
-  const status = (req.query.status as string) ?? req.body.status;
-
-  if (!paymentID || !status) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'paymentID and status are required');
-  }
+  const { paymentID, status } = PaymentValidation.callbackSchema.parse({
+    paymentID: req.query.paymentID ?? req.body?.paymentID,
+    status: req.query.status ?? req.body?.status,
+  });
 
   const result = await PaymentService.handleCallback(paymentID, status);
 

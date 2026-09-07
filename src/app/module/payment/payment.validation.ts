@@ -6,4 +6,8 @@ const initiatePaymentSchema = z.object({
   }),
 });
 
-export const PaymentValidation = { initiatePaymentSchema };
+const callbackSchema = z.object({
+  paymentID: z.string().min(1).max(200),
+  status: z.enum(['success', 'failure', 'cancel']),
+});
+export const PaymentValidation = { initiatePaymentSchema, callbackSchema };

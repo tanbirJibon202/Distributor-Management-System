@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import httpStatus from 'http-status';
 import config from './app/config/index.js';
+import { AdaptiveRateLimitStore } from './app/lib/rateLimitStore.js';
 import { globalErrorHandler } from './app/middleware/globalErrorHandler.js';
 import { notFound } from './app/middleware/notFound.js';
 import { AnalyticsRoutes } from './app/module/analytics/analytics.route.js';
@@ -40,6 +41,19 @@ const globalRateLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  // Counters live in Redis so one limit is shared by every instance. With the
+  // default in-memory store each process counted on its own, so the real limit
+  // was 100 x instances and any restart wiped it — fine on a single dyno, wrong
+  // the moment this scales.
+  // Counts in Redis when Redis is up, so one limit is shared across instances,
+  // and in memory when it is not. Chosen per request rather than at import —
+  // see the store for why that indirection is necessary.
+  store: new AdaptiveRateLimitStore(),
+  // Belt and braces for the case where Redis drops *after* the store promoted
+  // itself. Fails open: requests pass unlimited rather than every one 500-ing.
+  // Rate limiting protects capacity; it is not an authorisation control, and
+  // auth still runs regardless.
+  passOnStoreError: true,
   message: { success: false, message: 'Too many requests, please try again later', errors: [] },
 });
 app.use(globalRateLimiter);

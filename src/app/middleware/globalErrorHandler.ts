@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client.js';
 import type { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import jwt from 'jsonwebtoken';
@@ -36,6 +36,11 @@ export const globalErrorHandler = (
     } else if (error.code === 'P2025') {
       statusCode = httpStatus.NOT_FOUND;
       message = 'Requested record was not found';
+    } else if (error.code === 'P2034') {
+      // A serializable transaction lost the race and was rolled back. Nothing
+      // was written, so the correct answer is "try that again", not a 500.
+      statusCode = httpStatus.CONFLICT;
+      message = 'This request conflicted with another in-flight change, please retry';
     } else {
       statusCode = httpStatus.BAD_REQUEST;
       message = 'Database request error';
