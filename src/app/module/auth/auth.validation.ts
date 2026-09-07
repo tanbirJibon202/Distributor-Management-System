@@ -23,4 +23,41 @@ const googleAuthSchema = z.object({
   }),
 });
 
-export const AuthValidation = { registerSchema, loginSchema, googleAuthSchema };
+const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email'),
+  }),
+});
+
+const resetPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email'),
+    // Exactly six digits, as a string: a number would drop leading zeros, and
+    // the generator pads to six precisely so "004221" stays a valid code.
+    otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+    newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  }),
+});
+
+const verifyEmailSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email'),
+    otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  }),
+});
+
+const resendOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email'),
+  }),
+});
+
+export const AuthValidation = {
+  registerSchema,
+  loginSchema,
+  googleAuthSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+  resendOtpSchema,
+};

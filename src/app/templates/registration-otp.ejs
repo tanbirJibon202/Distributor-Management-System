@@ -1,0 +1,42 @@
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f3;padding:32px 12px;font-family:Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #d8dcd2;">
+        <tr>
+          <td style="padding:24px 28px;border-bottom:3px solid #1a1d1a;">
+            <div style="font-size:18px;font-weight:bold;color:#1a1d1a;">DMS Distributor</div>
+            <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7b8177;margin-top:4px;">Verify your email</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px;">
+            <p style="margin:0 0 14px;font-size:15px;color:#1a1d1a;">Welcome, <%= name %>.</p>
+            <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:#474d46;">
+              Enter this code to finish creating your account. Your account is not created until you do.
+            </p>
+
+            <table cellpadding="0" cellspacing="0" style="margin:0 0 22px;">
+              <tr>
+                <td style="background:#e6e2f5;border:1px solid #4b3f96;padding:14px 26px;font-family:'Courier New',monospace;font-size:28px;font-weight:bold;letter-spacing:7px;color:#4b3f96;">
+                  <%= otp %>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 8px;font-size:13px;color:#474d46;">
+              This code expires in <strong><%= expirationMinutes %> minutes</strong>.
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.55;color:#7b8177;">
+              If you did not sign up for DMS, ignore this email — nothing was created.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 28px;border-top:1px solid #d8dcd2;font-size:11px;color:#7b8177;">
+            Automated message from the DMS Distributor Management System. Please do not reply.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

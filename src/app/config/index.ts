@@ -21,12 +21,45 @@ const envSchema = z.object({
   BKASH_APP_KEY: z.string().optional(),
   BKASH_APP_SECRET: z.string().optional(),
   BKASH_CALLBACK_URL: z.string().optional(),
+  // All optional: email is a feature, not a dependency. Without SMTP the app
+  // boots and serves everything else; only the routes that send mail refuse,
+  // the same way the bKash routes do without gateway credentials.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().default('587'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  EMAIL_SENDER: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
   SUPER_ADMIN_NAME: z.string().default('Super Admin'),
-  SUPER_ADMIN_EMAIL: z.string().default('admin@dms.com'),
+  // Validated as an email, not just a string: the seed writes this straight
+  // into users.email, while the login route validates its input with .email().
+  // A value like "admin" therefore seeds an account that can never log in, and
+  // nothing catches it until someone tries. Fail at boot instead.
+  SUPER_ADMIN_EMAIL: z
+    .string()
+    .email('SUPER_ADMIN_EMAIL must be a valid email')
+    .default('admin@dms.com'),
   SUPER_ADMIN_PASSWORD: z.string().default('SuperAdmin123!'),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const parsed = envSchema
+  .superRefine((env, ctx) => {
+    if (
+      env.NODE_ENV === 'production' &&
+      (!process.env.SUPER_ADMIN_PASSWORD ||
+        env.SUPER_ADMIN_PASSWORD === 'SuperAdmin123!' ||
+        env.SUPER_ADMIN_PASSWORD.length < 12)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SUPER_ADMIN_PASSWORD'],
+        message: 'Production requires a non-default SUPER_ADMIN_PASSWORD of at least 12 characters',
+      });
+    }
+  })
+  .safeParse(process.env);
 
 if (!parsed.success) {
   console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
@@ -52,6 +85,14 @@ export default {
   bkash_app_key: env.BKASH_APP_KEY,
   bkash_app_secret: env.BKASH_APP_SECRET,
   bkash_callback_url: env.BKASH_CALLBACK_URL,
+  smtp_host: env.SMTP_HOST,
+  smtp_port: Number(env.SMTP_PORT),
+  smtp_user: env.SMTP_USER,
+  smtp_password: env.SMTP_PASSWORD,
+  email_sender: env.EMAIL_SENDER ?? env.SMTP_USER,
+  cloudinary_cloud_name: env.CLOUDINARY_CLOUD_NAME,
+  cloudinary_api_key: env.CLOUDINARY_API_KEY,
+  cloudinary_api_secret: env.CLOUDINARY_API_SECRET,
   super_admin_name: env.SUPER_ADMIN_NAME,
   super_admin_email: env.SUPER_ADMIN_EMAIL,
   super_admin_password: env.SUPER_ADMIN_PASSWORD,

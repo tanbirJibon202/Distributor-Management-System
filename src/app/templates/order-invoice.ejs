@@ -1,0 +1,54 @@
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f3;padding:32px 12px;font-family:Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #d8dcd2;">
+        <tr>
+          <td style="padding:24px 28px;border-bottom:3px solid #1a1d1a;">
+            <div style="font-size:18px;font-weight:bold;color:#1a1d1a;">DMS Distributor</div>
+            <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7b8177;margin-top:4px;">Invoice <%= invoiceNo %></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px;">
+            <p style="margin:0 0 14px;font-size:15px;color:#1a1d1a;">Hello <%= ownerName %>,</p>
+            <p style="margin:0 0 20px;font-size:14px;line-height:1.55;color:#474d46;">
+              Here is the invoice for your order from <strong><%= branchName %></strong>. The PDF is attached.
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d8dcd2;font-size:13px;">
+              <tr>
+                <td style="padding:9px 14px;color:#7b8177;border-bottom:1px solid #eceee8;">Invoice</td>
+                <td style="padding:9px 14px;text-align:right;font-family:'Courier New',monospace;color:#1a1d1a;border-bottom:1px solid #eceee8;"><%= invoiceNo %></td>
+              </tr>
+              <tr>
+                <td style="padding:9px 14px;color:#7b8177;border-bottom:1px solid #eceee8;">Shop</td>
+                <td style="padding:9px 14px;text-align:right;color:#1a1d1a;border-bottom:1px solid #eceee8;"><%= shopName %></td>
+              </tr>
+              <tr>
+                <td style="padding:9px 14px;color:#7b8177;border-bottom:1px solid #eceee8;">Payable</td>
+                <td style="padding:9px 14px;text-align:right;font-family:'Courier New',monospace;color:#1a1d1a;border-bottom:1px solid #eceee8;">BDT <%= payableAmount %></td>
+              </tr>
+              <tr>
+                <td style="padding:9px 14px;color:#7b8177;border-bottom:1px solid #eceee8;">Paid</td>
+                <td style="padding:9px 14px;text-align:right;font-family:'Courier New',monospace;color:#1a1d1a;border-bottom:1px solid #eceee8;">BDT <%= paidAmount %></td>
+              </tr>
+              <tr>
+                <td style="padding:11px 14px;font-weight:bold;color:#1a1d1a;">Balance due</td>
+                <td style="padding:11px 14px;text-align:right;font-family:'Courier New',monospace;font-weight:bold;color:#ad3a2d;">BDT <%= balanceDue %></td>
+              </tr>
+            </table>
+
+            <p style="margin:18px 0 0;font-size:13px;line-height:1.55;color:#474d46;">
+              Payment is due by <strong><%= dueDate %></strong>. Please quote invoice <%= invoiceNo %> when you pay.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 28px;border-top:1px solid #d8dcd2;font-size:11px;color:#7b8177;">
+            Automated message from the DMS Distributor Management System. Please do not reply.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

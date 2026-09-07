@@ -12,14 +12,57 @@ const REFRESH_COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
+// No tokens and no cookie here any more: registration only stages the account
+// and emails a code. The session is issued by verifyEmail, once the address is
+// proven. 202 rather than 201 — nothing has been created yet.
 const register = catchAsync(async (req, res) => {
-  const result = await AuthService.registerUser(req.body);
+  const result = await AuthService.registerUser(req.user!, req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.ACCEPTED,
+    message: result.message,
+    data: { email: result.email },
+  });
+});
+
+const verifyEmail = catchAsync(async (req, res) => {
+  const result = await AuthService.verifyEmail(req.body, req.ip);
   res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
-    message: 'User registered successfully',
+    message: 'Email verified and account created successfully',
     data: result,
+  });
+});
+
+const resendOtp = catchAsync(async (req, res) => {
+  const result = await AuthService.resendRegistrationOtp(req.body.email);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: result.message,
+    data: { email: result.email },
+  });
+});
+
+const forgotPassword = catchAsync(async (req, res) => {
+  const result = await AuthService.forgotPassword(req.body.email);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: result.message,
+    data: null,
+  });
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  const result = await AuthService.resetPassword(req.body, req.ip);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: result.message,
+    data: null,
   });
 });
 
@@ -60,7 +103,8 @@ const googleAuth = catchAsync(async (req, res) => {
   });
 });
 
-const logout = catchAsync(async (_req, res) => {
+const logout = catchAsync(async (req, res) => {
+  await AuthService.logout(req.user!.userId);
   res.clearCookie('refreshToken', { ...REFRESH_COOKIE_OPTIONS, maxAge: undefined });
   res.clearCookie('accessToken', { ...REFRESH_COOKIE_OPTIONS, maxAge: undefined });
 
@@ -81,4 +125,15 @@ const getMe = catchAsync(async (req, res) => {
   });
 });
 
-export const AuthController = { register, login, refreshToken, googleAuth, logout, getMe };
+export const AuthController = {
+  register,
+  verifyEmail,
+  resendOtp,
+  login,
+  refreshToken,
+  googleAuth,
+  logout,
+  getMe,
+  forgotPassword,
+  resetPassword,
+};
