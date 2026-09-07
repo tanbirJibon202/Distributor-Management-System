@@ -36,6 +36,14 @@
     {
       "key": "paymentId",
       "value": ""
+    },
+    {
+      "key": "otp",
+      "value": ""
+    },
+    {
+      "key": "pendingEmail",
+      "value": ""
     }
   ],
   "auth": {
@@ -53,7 +61,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Register (Field SR)",
+          "name": "Register (step 1 of 2 — sends OTP)",
           "request": {
             "method": "POST",
             "header": [
@@ -66,7 +74,54 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"SR Demo\",\n  \"email\": \"sr.demo@dms.com\",\n  \"password\": \"password123\",\n  \"phone\": \"01710000099\",\n  \"branchId\": \"{{branchId}}\"\n}"
             },
-            "url": "{{baseUrl}}/auth/register"
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Requires a SUPER_ADMIN or own-branch BRANCH_MANAGER access token. Stages an approved FIELD_SR account; the employee activates it with the emailed OTP.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Email (step 2 of 2 — creates account)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sr.demo@dms.com\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/verify-email",
+            "description": "Consumes the code, creates the user and returns tokens. Codes are single use, expire in 5 minutes, and allow 5 attempts before being invalidated."
+          }
+        },
+        {
+          "name": "Resend Registration OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sr.demo@dms.com\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/resend-otp",
+            "description": "Issues a fresh code for a registration still staged in Redis."
           }
         },
         {
@@ -81,9 +136,46 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@dms.com\",\n  \"password\": \"SuperAdmin123!\"\n}"
+              "raw": "{\n  \"email\": \"manager.dhaka@dms.com\",\n  \"password\": \"Manager123!\"\n}"
             },
-            "url": "{{baseUrl}}/auth/login"
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Copy accessToken from the response into the collection variable. The super admin address is whatever SUPER_ADMIN_EMAIL is set to, so this uses a seeded demo account instead."
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager.dhaka@dms.com\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "description": "Always answers the same whether or not the account exists, so the endpoint cannot be used to discover which emails are registered. Google-only accounts are silently skipped."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager.dhaka@dms.com\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/reset-password",
+            "description": "Verifies the emailed code and sets the new password. 5 attempts, then the code is burned."
           }
         },
         {
@@ -118,7 +210,8 @@
               "mode": "raw",
               "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}"
             },
-            "url": "{{baseUrl}}/auth/google"
+            "url": "{{baseUrl}}/auth/google",
+            "description": "Google sign-in for an existing approved staff account only. Google email must be verified; unknown accounts are rejected."
           }
         },
         {
@@ -133,7 +226,17 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/auth/logout",
-            "description": "Clears the refresh/access cookies."
+            "description": "Requires a valid access token. Revokes all access and refresh sessions for this staff account.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
@@ -159,6 +262,25 @@
           }
         },
         {
+          "name": "Update My Profile Image",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/users/me/image",
+            "description": "multipart/form-data with a single \"image\" field. JPEG, PNG or WebP, max 5MB. Any authenticated role may set their own. Requires the CLOUDINARY_* variables; returns 503 without them."
+          }
+        },
+        {
           "name": "Admin: Change User Role",
           "request": {
             "method": "PATCH",
@@ -173,6 +295,15 @@
               "raw": "{\n  \"role\": \"BRANCH_MANAGER\",\n  \"branchId\": \"{{branchId}}\"\n}"
             },
             "url": "{{baseUrl}}/admin/users/{{userId}}/role"
+          }
+        },
+        {
+          "name": "Admin: Deactivate User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/admin/users/{{userId}}",
+            "description": "Soft delete. Refuses to deactivate your own account or the last remaining super admin. Rewrites email/googleId to <value>:deleted:<id> so the address can be reused."
           }
         },
         {
@@ -331,6 +462,25 @@
               "raw": "{\n  \"price\": 120,\n  \"category\": \"Grocery\"\n}"
             },
             "url": "{{baseUrl}}/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Update Product Image (SUPER_ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/products/{{productId}}/image",
+            "description": "multipart/form-data with a single \"image\" field. JPEG, PNG or WebP, max 5MB. Requires the CLOUDINARY_* variables; returns 503 without them."
           }
         }
       ]
@@ -530,6 +680,24 @@
             "url": "{{baseUrl}}/orders/{{orderId}}",
             "description": "Role-scoped: an SR reading another SR’s order gets 403."
           }
+        },
+        {
+          "name": "Download Invoice PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{orderId}}/invoice",
+            "description": "Responds with application/pdf rather than the usual JSON envelope. Role-scoped exactly like Get Order By Id."
+          }
+        },
+        {
+          "name": "Email Invoice to Retailer",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/orders/{{orderId}}/invoice/email",
+            "description": "Sends the same PDF as an attachment to retailers.email. Returns 400 if that retailer has no email on file, and 503 if SMTP is not configured."
+          }
         }
       ]
     },
@@ -557,6 +725,32 @@
           "name": "Payment Callback (bKash redirect)",
           "request": {
             "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/payments/callback?paymentID=<paymentID>&status=success",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "callback"
+              ],
+              "query": [
+                {
+                  "key": "paymentID",
+                  "value": "<paymentID>"
+                },
+                {
+                  "key": "status",
+                  "value": "success"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Payment Callback (bKash redirect) (GET redirect)",
+          "request": {
+            "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/payments/callback?paymentID=<paymentID>&status=success",
               "host": [
