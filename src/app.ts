@@ -1,10 +1,15 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express, { type Application, type Request, type Response } from 'express';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
+import express, {
+  type Application,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from 'express';
+import helmetImport from 'helmet';
 import httpStatus from 'http-status';
 import config from './app/config/index.js';
+import { rateLimit } from './app/lib/rateLimiter.js';
 import { AdaptiveRateLimitStore } from './app/lib/rateLimitStore.js';
 import { globalErrorHandler } from './app/middleware/globalErrorHandler.js';
 import { notFound } from './app/middleware/notFound.js';
@@ -20,7 +25,22 @@ import { RetailerRoutes } from './app/module/retailer/retailer.route.js';
 import { UserRoutes } from './app/module/user/user.route.js';
 import { sendResponse } from './app/utils/sendResponse.js';
 
+// Narrowed for the same reason as the shared rate limiter — see lib/rateLimiter.ts.
+const helmet = helmetImport as unknown as (options?: Record<string, unknown>) => RequestHandler;
+
 const app: Application = express();
+
+// Exactly one hop, not `true`. Behind a platform proxy — Vercel, Render, any
+// CDN — the client address arrives in X-Forwarded-For, and without this Express
+// reports the proxy's address instead: rate limiting would count every caller
+// as one client, and the audit log would record the proxy for every action.
+// express-rate-limit refuses to start under that mismatch, which is how this
+// surfaced in production rather than silently mis-attributing requests.
+//
+// `true` would trust the whole chain, letting any caller spoof their address by
+// setting the header themselves. One hop trusts the proxy in front and nothing
+// beyond it.
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(

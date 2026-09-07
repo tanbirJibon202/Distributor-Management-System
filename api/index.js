@@ -15,13 +15,20 @@
 import app from '../dist/src/app.js';
 import { ensureRedis } from '../dist/src/app/lib/redis.js';
 
+// Bounded, for the same reason server.ts bounds its connect: the reconnect
+// strategy retries indefinitely, so a connect against an unreachable Redis
+// never settles. Awaiting it unbounded here does not fail the request — it
+// hangs the whole invocation until the platform kills it, turning an optional
+// dependency into a total outage. Giving up on the wait is not giving up on the
+// connection: it continues in the background and later invocations pick it up.
+const REDIS_WAIT_MS = 1500;
+
 export default async function handler(request, response) {
-  // Idempotent and near-free once the connection is open, which it stays for
-  // the life of a warm container. OTP storage depends on it, so a failure here
-  // is logged rather than swallowed — but it must not take the request down,
-  // since most routes work perfectly well without Redis.
   try {
-    await ensureRedis();
+    await Promise.race([
+      ensureRedis(),
+      new Promise((resolve) => setTimeout(resolve, REDIS_WAIT_MS)),
+    ]);
   } catch (error) {
     console.error('Redis unavailable for this invocation:', error?.message ?? error);
   }

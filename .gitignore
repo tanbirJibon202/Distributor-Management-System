@@ -11,4 +11,8 @@ src/generated
 .env.*
 !.env.example
 *.log
+# Scratch files from setup and deployment runs; some hold real credentials.
+*.tmp
+*.tmp.*
 .DS_Store
+.vercel

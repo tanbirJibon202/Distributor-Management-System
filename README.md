@@ -10,6 +10,17 @@ branch manager authorizes staff registration; employees cannot self-assign a bra
 
 **Stack:** Node.js · Express 5 · TypeScript · Prisma · PostgreSQL · Redis · JWT · bKash Checkout
 
+## Live API
+
+```
+https://distributor-management-system-seven.vercel.app/api/v1
+```
+
+Deployed to Vercel as a serverless function. `api/index.js` is the entry there;
+`src/server.ts` remains the entry for a long-lived process (Render, a container,
+local `npm run dev`). Two things only the process-based entry does: boot seeding
+and the hourly cron report, neither of which a serverless deployment can hold.
+
 ## Roles
 
 | Role | branchId | Scope |

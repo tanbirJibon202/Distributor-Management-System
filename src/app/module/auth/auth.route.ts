@@ -1,6 +1,6 @@
 import { Role } from '../../../generated/prisma/client.js';
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from '../../lib/rateLimiter.js';
 import { AdaptiveRateLimitStore } from '../../lib/rateLimitStore.js';
 import { auth } from '../../middleware/checkAuth.js';
 import { validateRequest } from '../../middleware/validateRequest.js';
