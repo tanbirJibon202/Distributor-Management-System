@@ -2,12 +2,28 @@ model Payment {
   id               String        @id @default(uuid())
   orderId          String
   transactionId    String?       @unique
-  gatewayPaymentId String?
+  gatewayPaymentId String? // holds the bKash paymentID between create and execute
   amount           Decimal       @db.Decimal(12, 2)
   provider         PaymentMethod
   status           PaymentStatus @default(UNPAID)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+
+  // The gateway's own reply, stored verbatim. When a customer disputes a
+  // charge, what the gateway actually said is the only authoritative record —
+  // reconstructing it from our own derived columns is guesswork.
+  gatewayResponse Json?
+
+  // Refunds are recorded rather than mutating the original payment away: the
+  // charge and its reversal are both facts, and reconciliation needs both.
+  refundTrxId  String?
+  refundAmount Decimal?  @db.Decimal(12, 2)
+  refundReason String?
+  refundedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  // Payment rows are mutated after insert — status moves to PAID/FAILED and
+  // transactionId is filled in from the gateway — so settlement time has to
+  // be recorded for reconciliation.
+  updatedAt DateTime @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])
 

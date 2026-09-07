@@ -237,14 +237,17 @@ const updateOrderStatus = async (
       );
     }
     if (status === OrderStatus.CANCELLED) {
-      // A reserved/in-flight payment must be reconciled before cancellation.
-      if (
-        Number(order.paidAmount) > 0 ||
-        order.payments.some((p) => p.status !== PaymentStatus.FAILED)
-      ) {
+      // A reserved or in-flight payment must be reconciled before cancellation.
+      // FAILED and REFUNDED are both settled outcomes — the money either never
+      // moved or has already been returned — so neither blocks cancelling. That
+      // is what makes a paid order cancellable at all: refund it first, then
+      // cancel. Anything else is still in flight and would leave the ledger
+      // disagreeing with the gateway.
+      const SETTLED: PaymentStatus[] = [PaymentStatus.FAILED, PaymentStatus.REFUNDED];
+      if (Number(order.paidAmount) > 0 || order.payments.some((p) => !SETTLED.includes(p.status))) {
         throw new AppError(
           httpStatus.CONFLICT,
-          'Cannot cancel an order with a successful or pending payment',
+          'Cannot cancel an order with a successful or pending payment. Refund it first.',
         );
       }
       await tx.retailer.update({

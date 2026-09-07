@@ -39,4 +39,19 @@ const handleCallback = catchAsync(async (req, res) => {
   });
 });
 
-export const PaymentController = { initiatePayment, getPaymentById, handleCallback };
+const refundPayment = catchAsync(async (req, res) => {
+  const result = await PaymentService.refundPayment(
+    req.user!,
+    req.params.id as string,
+    req.body.reason,
+    req.ip,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Payment refunded successfully',
+    data: result,
+  });
+});
+
+export const PaymentController = { initiatePayment, getPaymentById, handleCallback, refundPayment };

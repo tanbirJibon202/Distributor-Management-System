@@ -201,4 +201,60 @@ const queryPayment = async (paymentID: string): Promise<ExecutePaymentResponse> 
   return (await response.json()) as ExecutePaymentResponse;
 };
 
-export const BkashClient = { grantToken, createPayment, executePayment, queryPayment };
+type RefundPaymentResponse = {
+  refundTrxID?: string;
+  transactionStatus?: string;
+  amount?: string;
+  completedTime?: string;
+  statusCode?: string;
+  statusMessage?: string;
+};
+
+/**
+ * Reverses a settled payment through bKash.
+ *
+ * The gateway needs both its own paymentID and the trxID from the original
+ * settlement — the trxID is what identifies the money that actually moved, so a
+ * payment that never reached PAID has nothing to refund.
+ */
+const refundPayment = async (params: {
+  paymentID: string;
+  trxID: string;
+  amount: number;
+  reason: string;
+  sku: string;
+}): Promise<RefundPaymentResponse> => {
+  requireBkashConfig();
+  const token = await grantToken();
+
+  const response = await fetch(`${config.bkash_base_url}/tokenized/checkout/payment/refund`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token,
+      'X-APP-Key': config.bkash_app_key!,
+    },
+    body: JSON.stringify({
+      paymentID: params.paymentID,
+      trxID: params.trxID,
+      amount: params.amount.toFixed(2),
+      reason: params.reason,
+      sku: params.sku,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new AppError(httpStatus.BAD_GATEWAY, 'Failed to refund the bKash payment');
+  }
+
+  return (await response.json()) as RefundPaymentResponse;
+};
+
+export const BkashClient = {
+  grantToken,
+  createPayment,
+  executePayment,
+  queryPayment,
+  refundPayment,
+};

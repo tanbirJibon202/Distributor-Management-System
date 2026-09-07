@@ -257,15 +257,17 @@ POST   /payments/initiate
 GET    /payments/callback
 POST   /payments/callback
 GET    /payments/:id             payment status tracking
+POST   /payments/:id/refund      SUPER_ADMIN | BRANCH_MANAGER — reverses a settled charge
 
 GET    /admin/audit-logs         SUPER_ADMIN
 GET    /admin/dashboard-stats    SUPER_ADMIN — totals, order status counts, revenue, low stock
 ```
 
-**41 method/path combinations in total**, covering authentication with email verification and password reset,
+**42 method/path combinations in total**, covering authentication with email verification and password reset,
 profile/user management, core resource CRUD with soft deletes, business workflows
 (credit-checked ordering and the order state machine), search/filter/sort/pagination, the bKash
-payment lifecycle, PDF invoicing by download or email, image upload, and admin operations.
+payment lifecycle including gateway-confirmed refunds, PDF invoicing by download or email,
+image upload, and admin operations.
 
 ## Staff registration is two steps
 

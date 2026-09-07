@@ -17,6 +17,7 @@ enum PaymentStatus {
   PARTIALLY_PAID
   PAID
   FAILED
+  REFUNDED
 }
 
 enum PaymentMethod {

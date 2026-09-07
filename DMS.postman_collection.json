@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DMS - Distributor Management System",
-    "description": "# DMS — Distributor Management System\n\nA B2B supply-chain backend for FMCG and pharmaceutical distributors. Field Sales\nRepresentatives place credit orders on behalf of retail shops; the system enforces\nper-shop credit limits, deducts branch inventory atomically, and settles through bKash.\n\n**This is not e-commerce.** Retailers never log in — they are business records. The SR is\nthe only actor who creates an order, and staff accounts are created by an admin or a\nbranch manager, never by public signup.\n\n## Base URL\n\nSet the `baseUrl` variable. Locally that is `http://localhost:5000/api/v1`.\n\n## Authentication\n\nAll protected routes use **Bearer tokens**. The collection sends `{{accessToken}}`\nautomatically — run **Auth → Login**, copy `data.accessToken` from the response into the\n`accessToken` collection variable, and every other request is authorised.\n\nAccess tokens last 15 minutes; refresh tokens last 7 days and are set as an httpOnly\ncookie. `POST /auth/logout` and a password reset both raise the account's token version,\nwhich revokes every token already issued — including copies on other devices.\n\n## Roles\n\n| Role | Branch | Scope |\n|---|---|---|\n| `SUPER_ADMIN` | none | Everything, across all branches |\n| `BRANCH_MANAGER` | required | Their own branch only — 403 on any other |\n| `FIELD_SR` | required | Creates orders; sees only their own |\n\n## Response format\n\nEvery endpoint answers in one shape. Success:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"data\": {} }\n```\n\nPaginated endpoints add `meta`: `{ \"page\": 1, \"limit\": 10, \"total\": 45, \"totalPage\": 5 }`.\n\nFailure:\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"errors\": [{ \"path\": \"email\", \"message\": \"Invalid email\" }] }\n```\n\n`GET /orders/:id/invoice` is the one exception — it returns `application/pdf`.\n\n## Status codes\n\n| Code | Means |\n|---|---|\n| 400 | Validation failed, or the request is not valid for the current state |\n| 401 | Missing, expired or revoked token |\n| 403 | Authenticated, but this role or branch may not do it |\n| 404 | No such record, or not visible to this role |\n| 409 | Conflicts with another in-flight change — safe to retry |\n| 429 | Rate limited: 100 requests / 15 min globally, 5 / 15 min on auth |\n| 503 | An optional service (SMTP, Cloudinary, bKash) is not configured |\n\n## Optional services\n\nRedis, SMTP, Cloudinary and bKash are all optional. The API boots and serves without any\nof them — only the routes that need one return 503, and Redis degrades silently. Postgres\nis the only hard requirement.",
+    "description": "# DMS \u2014 Distributor Management System\n\nA B2B supply-chain backend for FMCG and pharmaceutical distributors. Field Sales\nRepresentatives place credit orders on behalf of retail shops; the system enforces\nper-shop credit limits, deducts branch inventory atomically, and settles through bKash.\n\n**This is not e-commerce.** Retailers never log in \u2014 they are business records. The SR is\nthe only actor who creates an order, and staff accounts are created by an admin or a\nbranch manager, never by public signup.\n\n## Base URL\n\nSet the `baseUrl` variable. Locally that is `http://localhost:5000/api/v1`.\n\n## Authentication\n\nAll protected routes use **Bearer tokens**. The collection sends `{{accessToken}}`\nautomatically \u2014 run **Auth \u2192 Login**, copy `data.accessToken` from the response into the\n`accessToken` collection variable, and every other request is authorised.\n\nAccess tokens last 15 minutes; refresh tokens last 7 days and are set as an httpOnly\ncookie. `POST /auth/logout` and a password reset both raise the account's token version,\nwhich revokes every token already issued \u2014 including copies on other devices.\n\n## Roles\n\n| Role | Branch | Scope |\n|---|---|---|\n| `SUPER_ADMIN` | none | Everything, across all branches |\n| `BRANCH_MANAGER` | required | Their own branch only \u2014 403 on any other |\n| `FIELD_SR` | required | Creates orders; sees only their own |\n\n## Response format\n\nEvery endpoint answers in one shape. Success:\n\n```json\n{ \"success\": true, \"message\": \"Operation successful\", \"data\": {} }\n```\n\nPaginated endpoints add `meta`: `{ \"page\": 1, \"limit\": 10, \"total\": 45, \"totalPage\": 5 }`.\n\nFailure:\n\n```json\n{ \"success\": false, \"message\": \"Validation failed\", \"errors\": [{ \"path\": \"email\", \"message\": \"Invalid email\" }] }\n```\n\n`GET /orders/:id/invoice` is the one exception \u2014 it returns `application/pdf`.\n\n## Status codes\n\n| Code | Means |\n|---|---|\n| 400 | Validation failed, or the request is not valid for the current state |\n| 401 | Missing, expired or revoked token |\n| 403 | Authenticated, but this role or branch may not do it |\n| 404 | No such record, or not visible to this role |\n| 409 | Conflicts with another in-flight change \u2014 safe to retry |\n| 429 | Rate limited: 100 requests / 15 min globally, 5 / 15 min on auth |\n| 503 | An optional service (SMTP, Cloudinary, bKash) is not configured |\n\n## Optional services\n\nRedis, SMTP, Cloudinary and bKash are all optional. The API boots and serves without any\nof them \u2014 only the routes that need one return 503, and Redis degrades silently. Postgres\nis the only hard requirement.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -61,7 +61,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Register (step 1 of 2 — sends OTP)",
+          "name": "Register (step 1 of 2 \u2014 sends OTP)",
           "request": {
             "method": "POST",
             "header": [
@@ -89,7 +89,7 @@
           }
         },
         {
-          "name": "Verify Email (step 2 of 2 — creates account)",
+          "name": "Verify Email (step 2 of 2 \u2014 creates account)",
           "request": {
             "method": "POST",
             "header": [
@@ -143,7 +143,7 @@
           },
           "response": [
             {
-              "name": "200 — signed in",
+              "name": "200 \u2014 signed in",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -171,7 +171,7 @@
               }
             },
             {
-              "name": "401 — wrong password",
+              "name": "401 \u2014 wrong password",
               "status": "Unauthorized",
               "code": 401,
               "_postman_previewlanguage": "json",
@@ -281,7 +281,7 @@
           },
           "response": [
             {
-              "name": "200 — current user",
+              "name": "200 \u2014 current user",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -319,7 +319,7 @@
           }
         }
       ],
-      "description": "Registration is **two steps**. `POST /auth/register` is called by an admin or branch\nmanager, stages the account in Redis for five minutes and emails a six-digit code — it\nreturns **202** and no tokens. `POST /auth/verify-email` consumes the code, creates the\nuser and returns the session.\n\nKeeping the pending signup out of Postgres means an abandoned registration leaves nothing\nbehind: no half-built row holding the email address, and no cleanup job.\n\nCodes are single use, expire in five minutes and allow five attempts. `forgot-password`\nanswers identically whether or not the account exists, so it cannot be used to discover\nwhich addresses are registered."
+      "description": "Registration is **two steps**. `POST /auth/register` is called by an admin or branch\nmanager, stages the account in Redis for five minutes and emails a six-digit code \u2014 it\nreturns **202** and no tokens. `POST /auth/verify-email` consumes the code, creates the\nuser and returns the session.\n\nKeeping the pending signup out of Postgres means an abandoned registration leaves nothing\nbehind: no half-built row holding the email address, and no cleanup job.\n\nCodes are single use, expire in five minutes and allow five attempts. `forgot-password`\nanswers identically whether or not the account exists, so it cannot be used to discover\nwhich addresses are registered."
     },
     {
       "name": "User",
@@ -389,7 +389,7 @@
           },
           "response": [
             {
-              "name": "400 — cannot remove your own account",
+              "name": "400 \u2014 cannot remove your own account",
               "status": "Bad Request",
               "code": 400,
               "_postman_previewlanguage": "json",
@@ -445,7 +445,7 @@
           },
           "response": [
             {
-              "name": "200 — field reps",
+              "name": "200 \u2014 field reps",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -512,7 +512,7 @@
               "raw": "{\n  \"name\": \"Sylhet Branch\",\n  \"code\": \"SYL-01\",\n  \"type\": \"BRANCH\",\n  \"location\": \"Sylhet\"\n}"
             },
             "url": "{{baseUrl}}/branches",
-            "description": "Type is one of CENTRAL, DEPOT or BRANCH. Code must be unique — it appears on invoice numbers."
+            "description": "Type is one of CENTRAL, DEPOT or BRANCH. Code must be unique \u2014 it appears on invoice numbers."
           }
         },
         {
@@ -524,7 +524,7 @@
           },
           "response": [
             {
-              "name": "200 — all branches",
+              "name": "200 \u2014 all branches",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -568,7 +568,7 @@
           },
           "response": [
             {
-              "name": "400 — validation failed",
+              "name": "400 \u2014 validation failed",
               "status": "Bad Request",
               "code": 400,
               "_postman_previewlanguage": "json",
@@ -640,7 +640,7 @@
           },
           "response": [
             {
-              "name": "200 — page 1, sorted by name",
+              "name": "200 \u2014 page 1, sorted by name",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -692,7 +692,7 @@
               }
             },
             {
-              "name": "401 — no token",
+              "name": "401 \u2014 no token",
               "status": "Unauthorized",
               "code": 401,
               "_postman_previewlanguage": "json",
@@ -754,7 +754,7 @@
           },
           "response": [
             {
-              "name": "200 — one product",
+              "name": "200 \u2014 one product",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -772,7 +772,7 @@
               }
             },
             {
-              "name": "404 — no such product",
+              "name": "404 \u2014 no such product",
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
@@ -891,7 +891,7 @@
           },
           "response": [
             {
-              "name": "200 — branch stock",
+              "name": "200 \u2014 branch stock",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -931,7 +931,7 @@
               }
             },
             {
-              "name": "200 — low stock only",
+              "name": "200 \u2014 low stock only",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1005,7 +1005,7 @@
           },
           "response": [
             {
-              "name": "200 — limit, due and headroom",
+              "name": "200 \u2014 limit, due and headroom",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1059,7 +1059,7 @@
           },
           "response": [
             {
-              "name": "200 — page 1",
+              "name": "200 \u2014 page 1",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1113,7 +1113,7 @@
           }
         }
       ],
-      "description": "The shops an SR sells to, on credit. `phone` is the unique business key;\n`email` is optional and only used to send invoice copies.\n\nA retailer with an outstanding balance cannot be deleted — that would quietly erase money\nstill owed — and the check is repeated after the row lock is acquired."
+      "description": "The shops an SR sells to, on credit. `phone` is the unique business key;\n`email` is optional and only used to send invoice copies.\n\nA retailer with an outstanding balance cannot be deleted \u2014 that would quietly erase money\nstill owed \u2014 and the check is repeated after the row lock is acquired."
     },
     {
       "name": "Order",
@@ -1167,7 +1167,7 @@
           },
           "response": [
             {
-              "name": "200 — page 1",
+              "name": "200 \u2014 page 1",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1231,11 +1231,11 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/orders/{{orderId}}",
-            "description": "Role-scoped: an SR reading another SR’s order gets 403."
+            "description": "Role-scoped: an SR reading another SR\u2019s order gets 403."
           },
           "response": [
             {
-              "name": "200 — full order",
+              "name": "200 \u2014 full order",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1249,7 +1249,7 @@
               "originalRequest": {
                 "method": "GET",
                 "url": "{{baseUrl}}/orders/{{orderId}}",
-                "description": "Role-scoped: an SR reading another SR’s order gets 403."
+                "description": "Role-scoped: an SR reading another SR\u2019s order gets 403."
               }
             }
           ]
@@ -1273,7 +1273,7 @@
           }
         }
       ],
-      "description": "The core workflow. `POST /orders` runs in one transaction: prices come from the\nproduct table so a client cannot dictate what it pays, credit is reserved by a conditional\nupdate, and stock is decremented conditionally. Any failure rolls all of it back.\n\nStatus follows a fixed machine: `PENDING → APPROVED → DISPATCHED → DELIVERED`, with\n`CANCELLED` reachable from `PENDING` and `APPROVED` only. Cancelling returns the stock\nand reverses the credit, and is refused while a payment is pending or settled."
+      "description": "The core workflow. `POST /orders` runs in one transaction: prices come from the\nproduct table so a client cannot dictate what it pays, credit is reserved by a conditional\nupdate, and stock is decremented conditionally. Any failure rolls all of it back.\n\nStatus follows a fixed machine: `PENDING \u2192 APPROVED \u2192 DISPATCHED \u2192 DELIVERED`, with\n`CANCELLED` reachable from `PENDING` and `APPROVED` only. Cancelling returns the stock\nand reverses the credit, and is refused while a payment is pending or settled."
     },
     {
       "name": "Payment",
@@ -1297,7 +1297,7 @@
           },
           "response": [
             {
-              "name": "403 — not your order",
+              "name": "403 \u2014 not your order",
               "status": "Forbidden",
               "code": 403,
               "_postman_previewlanguage": "json",
@@ -1350,7 +1350,7 @@
                 }
               ]
             },
-            "description": "Where bKash returns the customer browser. The callback alone is never trusted — the server calls execute to confirm before crediting."
+            "description": "Where bKash returns the customer browser. The callback alone is never trusted \u2014 the server calls execute to confirm before crediting."
           }
         },
         {
@@ -1387,9 +1387,27 @@
             "url": "{{baseUrl}}/payments/{{paymentId}}",
             "description": "A single payment with its order summary, for status tracking."
           }
+        },
+        {
+          "name": "Refund Payment (SUPER_ADMIN | BRANCH_MANAGER)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Retailer returned the goods\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/{{paymentId}}/refund",
+            "description": "Reverses a settled payment through bKash and puts the money back on the retailer account: paidAmount comes down, dueBalance goes back up, and the payment moves to REFUNDED.\n\nDeliberately its own endpoint rather than a side effect of cancelling an order \u2014 returning money is a decision someone makes, so it is role-gated and audited, and `reason` is required.\n\nOnly a payment that actually settled can be refunded; bKash identifies the movement by the trxID that only exists once execute confirmed it. Once refunded, the order becomes cancellable."
+          }
         }
       ],
-      "description": "bKash tokenized checkout. `initiate` creates a gateway payment and returns a\n`bkashURL` for the browser; the callback is never trusted on its own, so the server calls\nbKash's execute endpoint to confirm before crediting anything.\n\nRepeated initiation is refused with **409** while a payment is already pending, which is\nwhat stops a retailer being charged twice for one order."
+      "description": "bKash tokenized checkout. `initiate` creates a gateway payment and returns a\n`bkashURL` for the browser; the callback is never trusted on its own, so the server calls\nbKash's execute endpoint to confirm before crediting anything.\n\nRepeated initiation is refused with **409** while a payment is already pending, which is\nwhat stops a retailer being charged twice for one order.\n\nA settled payment can be reversed with `POST /payments/:id/refund`. That is what makes a paid order cancellable: refund first, then cancel. FAILED and REFUNDED are both settled outcomes and neither blocks cancellation."
     },
     {
       "name": "Admin",
@@ -1420,7 +1438,7 @@
           },
           "response": [
             {
-              "name": "200 — newest first",
+              "name": "200 \u2014 newest first",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1465,7 +1483,7 @@
           },
           "response": [
             {
-              "name": "200 — totals",
+              "name": "200 \u2014 totals",
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
@@ -1483,7 +1501,7 @@
               }
             },
             {
-              "name": "403 — manager may not",
+              "name": "403 \u2014 manager may not",
               "status": "Forbidden",
               "code": 403,
               "_postman_previewlanguage": "json",

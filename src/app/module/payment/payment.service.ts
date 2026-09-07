@@ -3,6 +3,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   Prisma,
+  Role,
 } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
 import { BkashClient } from '../../lib/bkash.js';
@@ -208,4 +209,121 @@ const handleCallback = async (paymentID: string, status: string) => {
   });
 };
 
-export const PaymentService = { initiatePayment, getPaymentById, handleCallback };
+/**
+ * Reverses a settled payment and puts the money back on the retailer's account.
+ *
+ * Deliberately its own endpoint rather than a side effect of cancelling an
+ * order: moving money back to a customer is a decision someone makes, not
+ * something that should happen quietly because a status changed. It is
+ * restricted to a super admin or the branch's own manager, and audited.
+ */
+const refundPayment = async (
+  actor: RequestActor,
+  paymentId: string,
+  reason: string,
+  ipAddress?: string | null,
+) => {
+  if (actor.role !== Role.SUPER_ADMIN && actor.role !== Role.BRANCH_MANAGER) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You cannot refund payments');
+  }
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { order: { select: { id: true, branchId: true, srId: true, invoiceNo: true } } },
+  });
+  if (!payment) throw new AppError(httpStatus.NOT_FOUND, 'Payment not found');
+  assertOrderAccess(actor, payment.order);
+
+  if (payment.status === PaymentStatus.REFUNDED) {
+    throw new AppError(httpStatus.CONFLICT, 'This payment has already been refunded');
+  }
+  // Only settled money can be returned. bKash identifies the movement by its
+  // trxID, which only exists once execute confirmed the payment.
+  if (payment.status !== PaymentStatus.PAID || !payment.transactionId) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Only a settled payment can be refunded; this one never completed',
+    );
+  }
+  if (!payment.gatewayPaymentId) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'This payment has no gateway reference to refund');
+  }
+
+  // The gateway call happens before the transaction, never inside it: it is a
+  // multi-second network round trip, and holding order rows locked across it
+  // would turn a slow gateway into database contention. If bKash refuses, this
+  // throws and nothing local has changed.
+  const gateway = await BkashClient.refundPayment({
+    paymentID: payment.gatewayPaymentId,
+    trxID: payment.transactionId,
+    amount: Number(payment.amount),
+    reason,
+    sku: payment.order.invoiceNo,
+  });
+
+  if (!gateway.refundTrxID) {
+    throw new AppError(httpStatus.BAD_GATEWAY, 'bKash did not confirm the refund');
+  }
+
+  const refunded = await prisma.$transaction(async (tx) => {
+    await lockOrder(tx, payment.orderId);
+
+    const updated = await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.REFUNDED,
+        refundTrxId: gateway.refundTrxID,
+        refundAmount: payment.amount,
+        refundReason: reason,
+        refundedAt: new Date(),
+        gatewayResponse: gateway as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    // The order owes the money again, so both running totals move back: what
+    // the order has been paid, and what the shop owes overall.
+    const order = await tx.order.update({
+      where: { id: payment.orderId },
+      data: {
+        paidAmount: { decrement: payment.amount },
+        paymentStatus: PaymentStatus.UNPAID,
+      },
+    });
+    await tx.order.update({
+      where: { id: payment.orderId },
+      data: {
+        paymentStatus:
+          Number(order.paidAmount) > 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.UNPAID,
+      },
+    });
+    await tx.retailer.update({
+      where: { id: order.retailerId },
+      data: { dueBalance: { increment: payment.amount } },
+    });
+
+    await createAuditLog(tx, {
+      userId: actor.userId,
+      action: 'PAYMENT_REFUND',
+      entity: 'Payment',
+      entityId: payment.id,
+      details: {
+        invoiceNo: payment.order.invoiceNo,
+        amount: String(payment.amount),
+        refundTrxId: gateway.refundTrxID,
+        reason,
+      },
+      ipAddress,
+    });
+
+    return updated;
+  });
+
+  return refunded;
+};
+
+export const PaymentService = {
+  initiatePayment,
+  getPaymentById,
+  handleCallback,
+  refundPayment,
+};
