@@ -1,4 +1,6 @@
-import { OrderStatus } from '@prisma/client';
+import { paginationSchema } from '../../utils/queryValidation.js';
+import { moneySchema } from '../../utils/money.js';
+import { OrderStatus } from '../../../generated/prisma/client.js';
 import { z } from 'zod';
 
 const createOrderSchema = z.object({
@@ -8,11 +10,16 @@ const createOrderSchema = z.object({
       .array(
         z.object({
           productId: z.string().uuid('Invalid productId'),
-          quantity: z.number().int().positive('quantity must be positive'),
+          quantity: z.number().int().positive('quantity must be positive').max(2147483647),
         }),
       )
-      .min(1, 'At least one item is required'),
-    discount: z.number().nonnegative().optional(),
+      .min(1, 'At least one item is required')
+      .max(100, 'At most 100 items are allowed')
+      .refine(
+        (items) => new Set(items.map((item) => item.productId)).size === items.length,
+        'Duplicate products are not allowed',
+      ),
+    discount: moneySchema.optional(),
   }),
 });
 
@@ -28,4 +35,11 @@ const updateOrderStatusSchema = z.object({
   }),
 });
 
-export const OrderValidation = { createOrderSchema, updateOrderStatusSchema };
+const listQuerySchema = paginationSchema
+  .extend({
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+    status: z.enum(['PENDING', 'APPROVED', 'DISPATCHED', 'DELIVERED', 'CANCELLED']).optional(),
+  })
+  .strict();
+
+export const OrderValidation = { listQuerySchema, createOrderSchema, updateOrderStatusSchema };

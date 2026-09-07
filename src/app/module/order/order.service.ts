@@ -1,8 +1,12 @@
-import { OrderStatus, PaymentStatus, type Prisma, Role } from '@prisma/client';
+import { OrderStatus, PaymentStatus, Prisma, Role } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
+import { lockOrder } from '../../utils/orderLock.js';
+import { assertOrderAccess } from '../../utils/orderAccess.js';
+import { sendEmail } from '../../lib/mailer.js';
 import { generateInvoiceNo } from '../../utils/generateInvoiceNo.js';
+import { buildInvoicePdf } from '../../utils/invoicePdf.js';
 import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';
 import { createAuditLog } from '../audit/audit.service.js';
 import {
@@ -22,7 +26,7 @@ const createOrder = async (
     throw new AppError(httpStatus.BAD_REQUEST, 'Your account is not assigned to a branch');
   }
   const branchId = actor.branchId;
-  const discount = input.discount ?? 0;
+  const discount = new Prisma.Decimal(input.discount ?? 0);
 
   const order = await prisma.$transaction(async (tx) => {
     const retailer = await tx.retailer.findFirst({
@@ -41,12 +45,12 @@ const createOrder = async (
     }
     const productById = new Map(products.map((p) => [p.id, p]));
 
-    let totalAmount = 0;
+    let totalAmount = new Prisma.Decimal(0);
     const itemsData = input.items.map((item) => {
       const product = productById.get(item.productId)!;
-      const unitPrice = Number(product.price);
-      const subTotal = unitPrice * item.quantity;
-      totalAmount += subTotal;
+      const unitPrice = product.price;
+      const subTotal = unitPrice.mul(item.quantity);
+      totalAmount = totalAmount.plus(subTotal);
       return {
         productId: item.productId,
         quantity: item.quantity,
@@ -56,18 +60,38 @@ const createOrder = async (
       };
     });
 
-    const payableAmount = totalAmount - discount;
-    if (payableAmount < 0) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'Discount cannot exceed the order total');
+    if (totalAmount.gt('9999999999.99')) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Order total exceeds the supported amount');
+    }
+    const payableAmount = totalAmount.minus(discount);
+    if (payableAmount.lte(0)) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Order payable amount must be greater than zero');
     }
 
-    // Credit check must run inside the transaction — outside it, two
-    // concurrent orders for the same retailer could both read a stale
-    // dueBalance and both pass the limit check.
-    const currentDue = Number(retailer.dueBalance);
-    const creditLimit = Number(retailer.creditLimit);
-    if (currentDue + payableAmount > creditLimit) {
-      const availableCredit = creditLimit - currentDue;
+    // Reserving credit is the same conditional-update shape as the stock
+    // decrement below, for the same reason: being inside a transaction does
+    // not make a read-then-write safe. At READ COMMITTED — the default, and
+    // nothing here raises it — two concurrent orders for one retailer would
+    // both read the same dueBalance, both pass a plain comparison, and both
+    // increment, taking the retailer past their limit. Checking and
+    // incrementing in one statement lets the database serialise them.
+    const creditCeiling = retailer.creditLimit.minus(payableAmount);
+    const creditReserved = await tx.retailer.updateMany({
+      where: {
+        id: input.retailerId,
+        deletedAt: null,
+        dueBalance: { lte: creditCeiling },
+      },
+      data: { dueBalance: { increment: payableAmount } },
+    });
+    if (creditReserved.count === 0) {
+      // Re-read so the message reports the balance that actually blocked
+      // this order, not the one read before a concurrent order landed.
+      const current = await tx.retailer.findUnique({
+        where: { id: input.retailerId },
+        select: { dueBalance: true, creditLimit: true },
+      });
+      const availableCredit = Number(current?.creditLimit ?? 0) - Number(current?.dueBalance ?? 0);
       throw new AppError(
         httpStatus.BAD_REQUEST,
         `Credit limit exceeded: available credit is ${availableCredit.toFixed(2)}, attempted order is ${payableAmount.toFixed(2)}`,
@@ -76,7 +100,7 @@ const createOrder = async (
 
     // Conditional update, never read-then-write — this is what makes the
     // stock check race-free under concurrent SRs hitting the same branch.
-    for (const item of itemsData) {
+    for (const item of [...itemsData].sort((a, b) => a.productId.localeCompare(b.productId))) {
       const updateResult = await tx.branchInventory.updateMany({
         where: { branchId, productId: item.productId, stock: { gte: item.quantity } },
         data: { stock: { decrement: item.quantity } },
@@ -112,17 +136,15 @@ const createOrder = async (
       include: { items: true },
     });
 
-    await tx.retailer.update({
-      where: { id: input.retailerId },
-      data: { dueBalance: { increment: payableAmount } },
-    });
+    // No dueBalance increment here — the credit reservation above already
+    // applied it as part of the same conditional update.
 
     await createAuditLog(tx, {
       userId: actor.userId,
       action: 'ORDER_CREATE',
       entity: 'Order',
       entityId: createdOrder.id,
-      details: { invoiceNo, payableAmount, retailerId: input.retailerId },
+      details: { invoiceNo, payableAmount: payableAmount.toString(), retailerId: input.retailerId },
       ipAddress,
     });
 
@@ -181,11 +203,7 @@ const getOrderById = async (actor: RequestActor, orderId: string) => {
 
   // Same scoping rule as the list endpoint: a manager is confined to their
   // branch and an SR to their own orders, so one can't read another's by id.
-  const isOwnBranch = actor.role === Role.BRANCH_MANAGER && actor.branchId === order.branchId;
-  const isOwnOrder = actor.role === Role.FIELD_SR && actor.userId === order.srId;
-  if (actor.role !== Role.SUPER_ADMIN && !isOwnBranch && !isOwnOrder) {
-    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this order');
-  }
+  assertOrderAccess(actor, order);
 
   return order;
 };
@@ -196,36 +214,38 @@ const updateOrderStatus = async (
   status: OrderStatus,
   ipAddress?: string | null,
 ) => {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { items: true, payments: true },
-  });
-  if (!order) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
+  if (actor.role !== Role.SUPER_ADMIN && actor.role !== Role.BRANCH_MANAGER) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You cannot change order status');
   }
-
-  if (actor.role === Role.BRANCH_MANAGER && actor.branchId !== order.branchId) {
-    throw new AppError(httpStatus.FORBIDDEN, 'You can only manage orders for your own branch');
-  }
-
-  const allowedNext = ORDER_STATUS_TRANSITIONS[order.status];
-  if (!allowedNext.includes(status)) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      `Cannot transition order from ${order.status} to ${status}`,
-    );
-  }
-
-  if (status === OrderStatus.CANCELLED) {
-    const hasSuccessfulPayment = order.payments.some((p) => p.status === PaymentStatus.PAID);
-    if (hasSuccessfulPayment) {
+  return prisma.$transaction(async (tx) => {
+    await lockOrder(tx, orderId);
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, payments: true },
+    });
+    if (!order) throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
+    assertOrderAccess(actor, order);
+    if (!ORDER_STATUS_TRANSITIONS[order.status].includes(status)) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        'Cannot cancel an order with a successful payment',
+        `Cannot transition order from ${order.status} to ${status}`,
       );
     }
-
-    return prisma.$transaction(async (tx) => {
+    if (status === OrderStatus.CANCELLED) {
+      // A reserved/in-flight payment must be reconciled before cancellation.
+      if (
+        Number(order.paidAmount) > 0 ||
+        order.payments.some((p) => p.status !== PaymentStatus.FAILED)
+      ) {
+        throw new AppError(
+          httpStatus.CONFLICT,
+          'Cannot cancel an order with a successful or pending payment',
+        );
+      }
+      await tx.retailer.update({
+        where: { id: order.retailerId },
+        data: { dueBalance: { decrement: order.payableAmount } },
+      });
       for (const item of order.items) {
         await tx.branchInventory.upsert({
           where: { branchId_productId: { branchId: order.branchId, productId: item.productId } },
@@ -233,33 +253,8 @@ const updateOrderStatus = async (
           create: { branchId: order.branchId, productId: item.productId, stock: item.quantity },
         });
       }
-
-      await tx.retailer.update({
-        where: { id: order.retailerId },
-        data: { dueBalance: { decrement: order.payableAmount } },
-      });
-
-      const updated = await tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.CANCELLED },
-      });
-
-      await createAuditLog(tx, {
-        userId: actor.userId,
-        action: 'ORDER_STATUS_CHANGE',
-        entity: 'Order',
-        entityId: orderId,
-        details: { from: order.status, to: status },
-        ipAddress,
-      });
-
-      return updated;
-    });
-  }
-
-  return prisma.$transaction(async (tx) => {
+    }
     const updated = await tx.order.update({ where: { id: orderId }, data: { status } });
-
     await createAuditLog(tx, {
       userId: actor.userId,
       action: 'ORDER_STATUS_CHANGE',
@@ -268,9 +263,74 @@ const updateOrderStatus = async (
       details: { from: order.status, to: status },
       ipAddress,
     });
-
     return updated;
   });
 };
 
-export const OrderService = { createOrder, getOrders, getOrderById, updateOrderStatus };
+const getOrderInvoice = async (actor: RequestActor, orderId: string) => {
+  // Reuses the read path rather than re-querying, so the invoice inherits the
+  // same role scoping and 404 behaviour — a manager cannot download another
+  // branch's invoice, an SR cannot download another SR's.
+  const order = await getOrderById(actor, orderId);
+
+  // Rendered outside any transaction: PDF generation is CPU work measured in
+  // tens of milliseconds, and holding a database transaction across it would
+  // keep row locks for no reason.
+  const pdf = await buildInvoicePdf(order);
+
+  return { pdf, invoiceNo: order.invoiceNo };
+};
+
+const money = (value: Prisma.Decimal | number) =>
+  Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * Emails the invoice PDF to the retailer.
+ *
+ * Both the render and the send happen outside any transaction, on purpose:
+ * SMTP is a multi-second network call, and holding order rows locked across it
+ * would turn a slow mail server into database contention.
+ */
+const emailOrderInvoice = async (actor: RequestActor, orderId: string) => {
+  const order = await getOrderById(actor, orderId);
+
+  if (!order.retailer.email) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `${order.retailer.shopName} has no email address on file. Add one to the retailer first, or download the PDF instead.`,
+    );
+  }
+
+  const pdf = await buildInvoicePdf(order);
+  const balanceDue = Number(order.payableAmount) - Number(order.paidAmount);
+
+  // Not sendEmailSafely: the caller explicitly asked to send this, so a
+  // failure is the outcome of their request, not a side effect of another one.
+  await sendEmail({
+    to: order.retailer.email,
+    subject: `Invoice ${order.invoiceNo} from ${order.branch.name}`,
+    template: 'order-invoice',
+    data: {
+      invoiceNo: order.invoiceNo,
+      ownerName: order.retailer.ownerName,
+      shopName: order.retailer.shopName,
+      branchName: order.branch.name,
+      payableAmount: money(order.payableAmount),
+      paidAmount: money(order.paidAmount),
+      balanceDue: money(balanceDue),
+      dueDate: order.dueDate.toDateString(),
+    },
+    attachments: [{ filename: `${order.invoiceNo}.pdf`, content: pdf }],
+  });
+
+  return { message: `Invoice ${order.invoiceNo} sent to ${order.retailer.email}` };
+};
+
+export const OrderService = {
+  createOrder,
+  getOrders,
+  getOrderById,
+  updateOrderStatus,
+  getOrderInvoice,
+  emailOrderInvoice,
+};

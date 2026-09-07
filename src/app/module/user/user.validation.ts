@@ -1,4 +1,5 @@
-import { Role } from '@prisma/client';
+import { listQueryBase } from '../../utils/queryValidation.js';
+import { Role } from '../../../generated/prisma/client.js';
 import { z } from 'zod';
 
 const updateMeSchema = z.object({
@@ -26,4 +27,11 @@ const updateRoleSchema = z.object({
     }),
 });
 
-export const UserValidation = { updateMeSchema, updateRoleSchema };
+const listQuerySchema = listQueryBase
+  .extend({
+    role: z.enum(['SUPER_ADMIN', 'BRANCH_MANAGER', 'FIELD_SR']).optional(),
+    branchId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export const UserValidation = { listQuerySchema, updateMeSchema, updateRoleSchema };

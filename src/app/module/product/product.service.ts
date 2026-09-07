@@ -1,5 +1,6 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
+import { deleteImage, uploadImage } from '../../lib/cloudinary.js';
 import { prisma } from '../../lib/prisma.js';
 import { redisClient } from '../../lib/redis.js';
 import { AppError } from '../../utils/AppError.js';
@@ -51,7 +52,16 @@ const safeCacheSet = async (key: string, value: string) => {
 
 const invalidateProductCache = async () => {
   try {
-    const keys = await redisClient.keys(`${CACHE_PREFIX}*`);
+    // SCAN rather than KEYS: KEYS walks the whole keyspace in one blocking
+    // call and stalls every other client for its duration, which on a shared
+    // Redis is felt well outside this service. SCAN pages through instead.
+    const keys: string[] = [];
+    for await (const key of redisClient.scanIterator({
+      MATCH: `${CACHE_PREFIX}*`,
+      COUNT: 100,
+    })) {
+      keys.push(key);
+    }
     if (keys.length) await redisClient.del(keys);
   } catch (error) {
     console.error('Redis cache invalidation failed:', error);
@@ -133,6 +143,55 @@ const getProductById = async (id: string) => {
 
 type UpdateProductInput = Partial<Omit<CreateProductInput, 'sku'>>;
 
+/**
+ * Replaces a product's image.
+ *
+ * The upload happens before the transaction and the delete of the old file
+ * after it: Cloudinary is a third-party network call, and it must not be inside
+ * a database transaction. The ordering also means a failed upload leaves the
+ * existing image untouched, rather than clearing the column and then failing.
+ */
+const updateProductImage = async (
+  actorId: string,
+  id: string,
+  file: Express.Multer.File,
+  ipAddress?: string | null,
+) => {
+  const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+
+  const uploaded = await uploadImage(file.buffer, 'dms/products');
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.product.update({
+      where: { id },
+      data: { imageUrl: uploaded.url, imagePublicId: uploaded.publicId },
+    });
+
+    await createAuditLog(tx, {
+      userId: actorId,
+      action: 'PRODUCT_IMAGE_UPDATE',
+      entity: 'Product',
+      entityId: id,
+      details: { sku: product.sku, imageUrl: uploaded.url },
+      ipAddress,
+    });
+
+    return result;
+  });
+
+  // Only once the new URL is committed — deleting first would risk losing the
+  // old image if the database write then failed. deleteImage never throws.
+  if (product.imagePublicId) {
+    await deleteImage(product.imagePublicId);
+  }
+
+  await invalidateProductCache();
+  return updated;
+};
+
 const updateProduct = async (
   actorId: string,
   id: string,
@@ -199,5 +258,6 @@ export const ProductService = {
   getProducts,
   getProductById,
   updateProduct,
+  updateProductImage,
   deleteProduct,
 };

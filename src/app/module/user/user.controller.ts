@@ -1,4 +1,5 @@
 import httpStatus from 'http-status';
+import { AppError } from '../../utils/AppError.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
 import { UserService } from './user.service.js';
@@ -39,4 +40,38 @@ const updateUserRole = catchAsync(async (req, res) => {
   });
 });
 
-export const UserController = { updateMe, getUsers, updateUserRole };
+const deactivateUser = catchAsync(async (req, res) => {
+  const result = await UserService.deactivateUser(
+    req.user!.userId,
+    req.params.id as string,
+    req.ip,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'User deactivated successfully',
+    data: result,
+  });
+});
+
+const updateProfileImage = catchAsync(async (req, res) => {
+  if (!req.file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'No image uploaded. Send one as the "image" field.');
+  }
+
+  const result = await UserService.updateProfileImage(req.user!.userId, req.file, req.ip);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Profile image updated successfully',
+    data: result,
+  });
+});
+
+export const UserController = {
+  updateMe,
+  updateProfileImage,
+  getUsers,
+  updateUserRole,
+  deactivateUser,
+};

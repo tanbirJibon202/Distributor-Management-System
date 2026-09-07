@@ -49,4 +49,33 @@ const updateOrderStatus = catchAsync(async (req, res) => {
   });
 });
 
-export const OrderController = { createOrder, getOrders, getOrderById, updateOrderStatus };
+// The only endpoint that does not go through sendResponse: the body is the PDF
+// itself, not the { success, message, data } envelope. Errors thrown before the
+// headers are sent still reach the global handler and keep that contract.
+const getOrderInvoice = catchAsync(async (req, res) => {
+  const { pdf, invoiceNo } = await OrderService.getOrderInvoice(req.user!, req.params.id as string);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${invoiceNo}.pdf"`);
+  res.setHeader('Content-Length', pdf.length);
+  res.status(httpStatus.OK).send(pdf);
+});
+
+const emailOrderInvoice = catchAsync(async (req, res) => {
+  const result = await OrderService.emailOrderInvoice(req.user!, req.params.id as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: result.message,
+    data: null,
+  });
+});
+
+export const OrderController = {
+  createOrder,
+  getOrders,
+  getOrderById,
+  updateOrderStatus,
+  getOrderInvoice,
+  emailOrderInvoice,
+};

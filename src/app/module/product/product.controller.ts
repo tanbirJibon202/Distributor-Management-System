@@ -1,4 +1,5 @@
 import httpStatus from 'http-status';
+import { AppError } from '../../utils/AppError.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
 import { ProductService } from './product.service.js';
@@ -63,10 +64,30 @@ const deleteProduct = catchAsync(async (req, res) => {
   });
 });
 
+const updateProductImage = catchAsync(async (req, res) => {
+  if (!req.file) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'No image uploaded. Send one as the "image" field.');
+  }
+
+  const result = await ProductService.updateProductImage(
+    req.user!.userId,
+    req.params.id as string,
+    req.file,
+    req.ip,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Product image updated successfully',
+    data: result,
+  });
+});
+
 export const ProductController = {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
+  updateProductImage,
   deleteProduct,
 };
