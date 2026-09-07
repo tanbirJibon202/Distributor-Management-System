@@ -37,3 +37,26 @@ export const connectRedis = async () => {
     await redisClient.connect();
   }
 };
+
+// Serverless has no boot step: each cold start imports the app and handles a
+// request, so nothing ever calls connectRedis. OTP storage is not optional —
+// registration and password reset fail outright without it — so the request
+// path has to be able to open the connection itself.
+//
+// The in-flight promise is cached rather than the result, so concurrent
+// requests on one cold start share a single connect instead of racing several.
+let connecting: Promise<unknown> | null = null;
+
+export const ensureRedis = async () => {
+  if (redisClient.isOpen) return;
+  if (!connecting) {
+    connecting = redisClient.connect().catch((error) => {
+      // Cleared so a later request can retry rather than being stuck behind a
+      // permanently rejected promise.
+      connecting = null;
+      throw error;
+    });
+  }
+  await connecting;
+  connecting = null;
+};
