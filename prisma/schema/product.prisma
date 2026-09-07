@@ -7,6 +7,10 @@ model Product {
   unit        String // PCS | CTN | KG
   price       Decimal   @db.Decimal(12, 2)
   costPrice   Decimal   @db.Decimal(12, 2)
+  // Cloudinary's secure URL, plus the public id needed to delete the old file
+  // when the image is replaced. Both null until an image is uploaded.
+  imageUrl      String?
+  imagePublicId String?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

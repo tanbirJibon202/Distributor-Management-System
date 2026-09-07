@@ -1,17 +1,22 @@
-// Soft-deleted rows keep their unique value but get `:deleted:<id>` appended
-// to email/sku/phone, so a fresh row can reuse the original value without
-// tripping the unique constraint. Always read/write the clean value through
-// the service layer; never expose the mutated value to a client.
+
 
 model User {
   id        String    @id @default(uuid())
   name      String
   email     String    @unique
   password  String? // nullable — Google-authenticated users have no password
+  tokenVersion Int @default(0)
   phone     String?
   role      Role      @default(FIELD_SR)
   branchId  String?
   googleId  String?   @unique
+  // Cloudinary's secure URL plus the public id needed to delete the previous
+  // file when the avatar is replaced. Null until one is uploaded.
+  imageUrl      String?
+  imagePublicId String?
+  // Soft delete also rewrites email/googleId to `<value>:deleted:<id>` — both
+  // are unique, so a deactivated row would otherwise reserve that address
+  // forever. Services always read/write the clean value; see user.service.ts.
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

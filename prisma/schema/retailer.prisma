@@ -3,6 +3,10 @@ model Retailer {
   shopName    String
   ownerName   String
   phone       String    @unique
+  // Optional, and deliberately not unique: a shopkeeper may have no email at
+  // all, and a family running two shops may well share one. Phone stays the
+  // identifying key. Only used to send invoice copies.
+  email       String?
   address     String
   routeArea   String
   creditLimit Decimal   @default(50000) @db.Decimal(12, 2)

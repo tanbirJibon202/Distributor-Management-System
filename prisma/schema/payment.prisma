@@ -2,11 +2,12 @@ model Payment {
   id               String        @id @default(uuid())
   orderId          String
   transactionId    String?       @unique
-  gatewayPaymentId String? // holds the bKash paymentID between create and execute
+  gatewayPaymentId String?
   amount           Decimal       @db.Decimal(12, 2)
   provider         PaymentMethod
   status           PaymentStatus @default(UNPAID)
   createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])
 
