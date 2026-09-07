@@ -16,3 +16,6 @@ src/generated
 *.tmp.*
 .DS_Store
 .vercel
+
+# Working notes kept alongside the code but not part of it.
+docs/

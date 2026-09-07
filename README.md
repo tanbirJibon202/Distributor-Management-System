@@ -295,6 +295,3 @@ Deliberately out of scope, though the schema leaves room: batch and expiry track
 inter-branch stock transfers, purchase orders and GRN, sales returns, a retailer ledger table,
 stock movement history, SR beat plans and commission, and configurable discount ceilings — SR
 discounts stay subject to manager review of the pending order.
-
-For the fuller design discussion and the boundaries of this version, see
-[docs/architecture-review.md](docs/architecture-review.md).
