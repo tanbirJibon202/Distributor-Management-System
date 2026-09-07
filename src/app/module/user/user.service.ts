@@ -1,6 +1,7 @@
 import { type Prisma, Role } from '../../../generated/prisma/client.js';
 import httpStatus from 'http-status';
 import { deleteImage, uploadImage } from '../../lib/cloudinary.js';
+import { sendEmailSafely } from '../../lib/mailer.js';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
 import { buildMeta, getPaginationParams } from '../../utils/pagination.js';
@@ -73,7 +74,7 @@ const updateUserRole = async (
   data: { role: Role; branchId?: string | null },
   ipAddress?: string | null,
 ) => {
-  return prisma.$transaction(async (tx) => {
+  const { updated, notify } = await prisma.$transaction(async (tx) => {
     // Serializes all admin-membership changes, including deactivation.
     await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(73194211)`;
     const targetUser = await tx.user.findFirst({ where: { id: targetUserId, deletedAt: null } });
@@ -108,8 +109,44 @@ const updateUserRole = async (
       details: { from: targetUser.role, to: data.role, branchId },
       ipAddress,
     });
-    return updated;
+    return {
+      updated,
+      notify: {
+        email: targetUser.email,
+        name: targetUser.name,
+        previousRole: targetUser.role,
+        branchId,
+      },
+    };
   });
+
+  // After the commit. A role change silently alters what someone can see and
+  // do, and they had no part in it — so they are told, which also makes an
+  // unauthorised change visible to the person it affects rather than only to
+  // the audit log.
+  const [actor, branch] = await Promise.all([
+    prisma.user.findUnique({ where: { id: actorId }, select: { name: true } }).catch(() => null),
+    notify.branchId
+      ? prisma.branch
+          .findUnique({ where: { id: notify.branchId }, select: { name: true } })
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  await sendEmailSafely({
+    to: notify.email,
+    subject: `Your DMS role is now ${data.role}`,
+    template: 'account-role-changed',
+    data: {
+      name: notify.name,
+      actorName: actor?.name ?? 'An administrator',
+      previousRole: notify.previousRole,
+      newRole: data.role,
+      branchName: branch?.name ?? 'All branches',
+    },
+  });
+
+  return updated;
 };
 
 /**

@@ -218,6 +218,24 @@ const verifyEmail = async (input: { email: string; otp: string }, ipAddress?: st
 
   await redisClient.del(registrationKey(email));
 
+  // Outside the transaction and failure-tolerant: the account exists either
+  // way, so a mail server hiccup must not turn a successful signup into an
+  // error. The recipient did not create this account themselves — an admin or
+  // their branch manager did — so the mail names who authorised it, which is
+  // what makes an unexpected account visible to the person it belongs to.
+  await sendEmailSafely({
+    to: user.email,
+    subject: 'Your DMS account is active',
+    template: 'staff-welcome',
+    data: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      branchName: branch.name,
+      authorizedBy: staged.authorizedBy ?? 'an administrator',
+    },
+  });
+
   const tokens = issueTokens({ ...user, branchId: user.branchId });
   const { tokenVersion: _version, ...safeUser } = user;
   return { user: safeUser, ...tokens };

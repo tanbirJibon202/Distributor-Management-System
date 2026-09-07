@@ -4,7 +4,7 @@ import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../utils/AppError.js';
 import { lockOrder } from '../../utils/orderLock.js';
 import { assertOrderAccess } from '../../utils/orderAccess.js';
-import { sendEmail } from '../../lib/mailer.js';
+import { sendEmail, sendEmailSafely } from '../../lib/mailer.js';
 import { generateInvoiceNo } from '../../utils/generateInvoiceNo.js';
 import { buildInvoicePdf } from '../../utils/invoicePdf.js';
 import { type PaginationQuery, buildMeta, getPaginationParams } from '../../utils/pagination.js';
@@ -217,11 +217,16 @@ const updateOrderStatus = async (
   if (actor.role !== Role.SUPER_ADMIN && actor.role !== Role.BRANCH_MANAGER) {
     throw new AppError(httpStatus.FORBIDDEN, 'You cannot change order status');
   }
-  return prisma.$transaction(async (tx) => {
+  const { updated, notify } = await prisma.$transaction(async (tx) => {
     await lockOrder(tx, orderId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      include: { items: true, payments: true },
+      include: {
+        items: true,
+        payments: true,
+        sr: { select: { name: true, email: true } },
+        retailer: { select: { shopName: true } },
+      },
     });
     if (!order) throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
     assertOrderAccess(actor, order);
@@ -263,8 +268,57 @@ const updateOrderStatus = async (
       details: { from: order.status, to: status },
       ipAddress,
     });
-    return updated;
+    // Null rather than a throw when the relations are absent. This runs inside
+    // the transaction, so anything that can raise here would roll back a
+    // legitimate status change — a notification must never be able to undo the
+    // operation it is only reporting on. No data simply means no email.
+    return {
+      updated,
+      notify:
+        order.sr?.email && order.retailer
+          ? {
+              srName: order.sr.name,
+              srEmail: order.sr.email,
+              shopName: order.retailer.shopName,
+              invoiceNo: order.invoiceNo,
+              previousStatus: order.status,
+              payableAmount: order.payableAmount,
+              dueDate: order.dueDate,
+            }
+          : null,
+    };
   });
+
+  // After the commit, never inside it. The SR did not make this change — a
+  // manager or admin did — and an order moving to APPROVED, DISPATCHED or
+  // CANCELLED is something they have to act on, so they are told rather than
+  // left to discover it by polling. Failure-tolerant: the status change has
+  // already happened, and a mail server problem must not report it as failed.
+  if (notify) {
+    const actorName = await prisma.user
+      .findUnique({ where: { id: actor.userId }, select: { name: true } })
+      .then((u) => u?.name ?? 'A manager')
+      .catch(() => 'A manager');
+
+    await sendEmailSafely({
+      to: notify.srEmail,
+      subject: `Order ${notify.invoiceNo} is now ${status}`,
+      template: 'order-status-changed',
+      data: {
+        srName: notify.srName,
+        actorName,
+        invoiceNo: notify.invoiceNo,
+        shopName: notify.shopName,
+        previousStatus: notify.previousStatus,
+        newStatus: status,
+        isCancelled: status === OrderStatus.CANCELLED,
+        payableAmount: money(notify.payableAmount),
+        dueDate: new Date(notify.dueDate).toDateString(),
+      },
+    });
+  }
+
+  return updated;
 };
 
 const getOrderInvoice = async (actor: RequestActor, orderId: string) => {

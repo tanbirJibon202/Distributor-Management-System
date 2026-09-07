@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, afterEach, before, mock, test } from 'node:test';
 import type { Server } from 'node:http';
-
-// Never connect to the application's configured database or external services.
 process.env.NODE_ENV = 'test';
 process.env.GOOGLE_CLIENT_ID = 'regression-test-client';
 process.env.SMTP_HOST = 'smtp.test.invalid';
@@ -136,7 +134,14 @@ function database() {
   const payments: any[] = [];
   const state = { stock: 8, due: 100, logs: [] as any[] };
   let tail = Promise.resolve();
-  const readOrder = async () => ({ ...order, payments: payments.map((p) => ({ ...p })) });
+  // Mirrors what updateOrderStatus actually selects, relations included, so
+  // the fake cannot pass while the real query shape would fail.
+  const readOrder = async () => ({
+    ...order,
+    payments: payments.map((p) => ({ ...p })),
+    sr: { name: 'Field SR', email: 'sr@dms.test' },
+    retailer: { shopName: 'Test Shop' },
+  });
   const payment = {
     findFirst: async ({ where }: any) =>
       payments.find(

@@ -7,10 +7,16 @@ import config from '../config/index.js';
 import { AppError } from '../utils/AppError.js';
 
 export type EmailTemplate =
+  // Requested by the recipient themselves.
   | 'forgot-password'
   | 'reset-password-success'
   | 'registration-otp'
-  | 'order-invoice';
+  | 'order-invoice'
+  // Sent because someone else acted on the recipient's account or work, so the
+  // recipient learns about it without having to go looking.
+  | 'staff-welcome'
+  | 'order-status-changed'
+  | 'account-role-changed';
 
 type SendEmailInput = {
   to: string;
@@ -28,10 +34,10 @@ const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..
 
 const isConfigured = () => Boolean(config.smtp_host && config.smtp_user && config.smtp_password);
 
-let transporter: Transporter | null = null;
-
-// Built once, lazily. Creating it at import time would mean every process that
-// merely loads this module opens an SMTP pool, including ones that never send.
+// Built per send rather than cached. Without pooling a transport is a cheap
+// object that opens its connection at send time, so caching one buys nothing
+// — and a module-level instance is a hidden global: once created it survives
+// configuration changes and makes the transport impossible to substitute.
 const getTransporter = (): Transporter => {
   if (!isConfigured()) {
     throw new AppError(
@@ -40,18 +46,14 @@ const getTransporter = (): Transporter => {
     );
   }
 
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: config.smtp_host,
-      port: config.smtp_port,
-      // 465 is implicit TLS; 587 and 2525 start plaintext and upgrade via
-      // STARTTLS, which nodemailer does on its own when secure is false.
-      secure: config.smtp_port === 465,
-      auth: { user: config.smtp_user, pass: config.smtp_password },
-    });
-  }
-
-  return transporter;
+  return nodemailer.createTransport({
+    host: config.smtp_host,
+    port: config.smtp_port,
+    // 465 is implicit TLS; 587 and 2525 start plaintext and upgrade via
+    // STARTTLS, which nodemailer does on its own when secure is false.
+    secure: config.smtp_port === 465,
+    auth: { user: config.smtp_user, pass: config.smtp_password },
+  });
 };
 
 /**
