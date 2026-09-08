@@ -44,6 +44,14 @@
     {
       "key": "pendingEmail",
       "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": "tanbirahamed202@gmail.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": ""
     }
   ],
   "auth": {
@@ -136,24 +144,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"manager.dhaka@dms.com\",\n  \"password\": \"Manager123!\"\n}"
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Copy accessToken from the response into the collection variable. The super admin address is whatever SUPER_ADMIN_EMAIL is set to, so this uses a seeded demo account instead."
+            "description": "Set the `adminPassword` collection variable before running this \u2014 it ships empty on purpose, since the collection lives in a public repository and a working admin password does not belong there.\n\nCopy `data.accessToken` from the response into the `accessToken` variable; every other request sends it automatically.\n\nThe super admin is the only account on a fresh database. Branch managers and SRs are created through the admin routes, or seeded automatically when running locally with NODE_ENV=development."
           },
           "response": [
             {
               "name": "200 \u2014 signed in",
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Logged in successfully\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"38d7401f-dc2d-4178-a1e7-3aadf2889bbc\",\n      \"name\": \"Super Admin\",\n      \"email\": \"tanbirahamed202@gmail.com\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"branchId\": null,\n      \"googleId\": null,\n      \"imageUrl\": null,\n      \"imagePublicId\": null,\n      \"deletedAt\": null,\n      \"createdAt\": \"2026-09-07T07:59:15.688Z\",\n      \"updatedAt\": \"2026-09-07T12:33:19.091Z\"\n    },\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzOGQ3NDAxZi1kYzJkLTQxNzgtYTFlNy0zYWFkZjI4ODliYmMiLCJlbWFpbCI6InRhbmJpcmFoYW1lZDIwMkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJicmFuY2hJZCI6bnVsbCwidG9rZW5WZXJzaW9uIjozLCJpYXQiOjE3ODg3ODUzNTEsImV4cCI6MTc4ODc4NjI1MX0.WizIqMsLCsyJxvY6Y5zlTS4XQlCusDndsRj2fynlZ5U\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzOGQ3NDAxZi1kYzJkLTQxNzgtYTFlNy0zYWFkZjI4ODliYmMiLCJlbWFpbCI6InRhbmJpcmFoYW1lZDIwMkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJicmFuY2hJZCI6bnVsbCwidG9rZW5WZXJzaW9uIjozLCJpYXQiOjE3ODg3ODUzNTEsImV4cCI6MTc4OTM5MDE1MX0.paiPs-0hyRNCeVee2E7vfd0gch2SegldHg29p3nTamc\"\n  }\n}",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -164,11 +162,21 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"manager.dhaka@dms.com\",\n  \"password\": \"Manager123!\"\n}"
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
                 },
                 "url": "{{baseUrl}}/auth/login",
-                "description": "Copy accessToken from the response into the collection variable. The super admin address is whatever SUPER_ADMIN_EMAIL is set to, so this uses a seeded demo account instead."
-              }
+                "description": "Set the `adminPassword` collection variable before running this \u2014 it ships empty on purpose, since the collection lives in a public repository and a working admin password does not belong there.\n\nCopy `data.accessToken` from the response into the `accessToken` variable; every other request sends it automatically.\n\nThe super admin is the only account on a fresh database. Branch managers and SRs are created through the admin routes, or seeded automatically when running locally with NODE_ENV=development."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged in successfully\",\n  \"data\": {\n    \"user\": {\n      \"id\": \"3bd875c5-3465-40f6-b7bb-76e06deb0fc7\",\n      \"name\": \"Super Admin\",\n      \"email\": \"tanbirahamed202@gmail.com\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"branchId\": null,\n      \"googleId\": null,\n      \"imageUrl\": null,\n      \"imagePublicId\": null,\n      \"deletedAt\": null,\n      \"createdAt\": \"2026-09-07T18:40:12.285Z\",\n      \"updatedAt\": \"2026-09-07T18:40:12.285Z\"\n    },\n    \"accessToken\": \"<access token>\",\n    \"refreshToken\": \"<refresh token>\"\n  }\n}"
             },
             {
               "name": "401 \u2014 wrong password",
@@ -192,10 +200,10 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"manager.dhaka@dms.com\",\n  \"password\": \"Manager123!\"\n}"
+                  "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
                 },
                 "url": "{{baseUrl}}/auth/login",
-                "description": "Copy accessToken from the response into the collection variable. The super admin address is whatever SUPER_ADMIN_EMAIL is set to, so this uses a seeded demo account instead."
+                "description": "Set the `adminPassword` collection variable before running this \u2014 it ships empty on purpose, since the collection lives in a public repository and a working admin password does not belong there.\n\nCopy `data.accessToken` from the response into the `accessToken` variable; every other request sends it automatically.\n\nThe super admin is the only account on a fresh database. Branch managers and SRs are created through the admin routes, or seeded automatically when running locally with NODE_ENV=development."
               }
             }
           ]

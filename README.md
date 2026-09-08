@@ -78,6 +78,10 @@ Plus two branches, twelve products stocked in both, and six retailers — one of
 (`Rahim General Store`) deliberately close to its credit limit, so the credit block can be
 demonstrated without setting anything up first.
 
+The deployed instance runs with `NODE_ENV=production`, so none of that demo data exists
+there — only the super admin from `SUPER_ADMIN_EMAIL`. Branches, products and staff are
+created through the API, which is also the honest way to see the system work.
+
 ## Layout
 
 ```
