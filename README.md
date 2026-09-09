@@ -69,7 +69,7 @@ accounts, and production refuses to start on a default or short admin password.
 
 | Role | Email | Password |
 |---|---|---|
-| Super Admin | `SUPER_ADMIN_EMAIL` | `SUPER_ADMIN_PASSWORD` |
+| Super Admin | `admin@dms.com` | `SuperAdmin123!` |
 | Branch Manager (Dhaka) | `manager.dhaka@dms.com` | `Manager123!` |
 | Branch Manager (Chattogram) | `manager.ctg@dms.com` | `Manager123!` |
 | Field SR | `sr1@dms.com` | `FieldSr123!` |
