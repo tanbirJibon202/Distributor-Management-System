@@ -1,505 +1,301 @@
 # DMS — Distributor Management System
 
-REST API for FMCG and pharmaceutical distribution in Bangladesh: sales reps take
-orders from shops in the field, branch managers approve them and manage stock,
-and admins oversee every branch. Retailers buy on credit and pay through bKash.
-This repo is the backend only.
+A backend for the way FMCG and pharmaceutical distribution actually works here. A Field Sales
+Representative walks a route, takes orders from shops on credit, and the distributor collects
+the money later. This service is the system of record for that: the product catalogue, the
+stock sitting in each branch, every shop's credit limit, and the orders moving between them.
 
-Stack: Node.js · Express 5 · TypeScript · Prisma 7 · PostgreSQL · Redis · JWT auth
+It is not an e-commerce API. Retailers never log in — they are business records, not user
+accounts. There is no cart and no public signup. The SR is the only person who creates an
+order, and staff accounts are created by an admin or a branch manager, never by the employee
+themselves.
 
-## Where the project stands today
+**Live:** https://distributor-management-system-seven.vercel.app/api/v1
 
-Every module described below works end to end: authentication with email OTP,
-branches, products, per-branch inventory, retailers with credit limits, the order
-lifecycle, bKash payments with refunds, PDF invoices, audit logging and dashboard
-statistics.
+**Stack:** Node.js · TypeScript · Express 5 · PostgreSQL · Prisma 7 · Redis · JWT · bKash
 
-What that sentence does not cover is worth stating up front. The regression tests
-run against a Prisma double rather than a live PostgreSQL, the hourly cron does not
-run on a serverless deployment, and several services — Redis, SMTP, Cloudinary,
-bKash — are optional and behave differently when they are absent. Each of those is
-explained in [Known limitations](#known-limitations). Read that section before
-assuming something is broken on your end.
+## Roles
 
-Only PostgreSQL is genuinely required. The app boots without any of the rest.
+Three roles, and every scoped query has the same shape.
 
-## Prerequisites
+| Role | Branch | What they reach |
+|---|---|---|
+| `SUPER_ADMIN` | none | Everything, across all branches |
+| `BRANCH_MANAGER` | required | Their own branch only |
+| `FIELD_SR` | required | Creates orders; sees only their own |
 
-| Tool | Version | Check with |
-| --- | --- | --- |
-| Node.js | 20+ | `node -v` |
-| PostgreSQL | 14+ | `psql -V` |
-| Redis | 6+ *(optional)* | `redis-cli --version` |
+```ts
+const where =
+  actor.role === 'SUPER_ADMIN'    ? {}
+: actor.role === 'BRANCH_MANAGER' ? { branchId: actor.branchId }
+:                                   { srId: actor.userId };
+```
 
-Any package manager works. The examples below use npm.
+Products and retailers — including credit limits — are shared across branches. Inventory is per
+branch, and an order belongs to one SR and one branch.
 
-## Getting started
-
-**1. Install dependencies**
+## Running it
 
 ```bash
 npm install
-```
-
-`postinstall` runs `prisma generate` for you, so step 3 is already done after a
-fresh install. It is listed separately because you will need to re-run it.
-
-**2. Set up your environment file**
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` and point `DATABASE_URL` at a Postgres database you can connect to:
-
-```
-DATABASE_URL="postgresql://YOUR_USERNAME:YOUR_PASSWORD@localhost:5432/dms?schema=public"
-DIRECT_URL="postgresql://YOUR_USERNAME:YOUR_PASSWORD@localhost:5432/dms?schema=public"
-```
-
-On plain local Postgres both variables hold the same value. They differ only on a
-pooled provider — see [Environment variables](#environment-variables).
-
-Set `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` to real random strings before
-anything else; the placeholders in `.env.example` will not do:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Unlike many starters, this one validates the environment at startup and refuses to
-boot on a missing or malformed variable, naming the one at fault. That is
-deliberate: a missing JWT secret should stop the process, not surface as a failed
-login three hours later.
-
-**3. Generate the Prisma client**
-
-```bash
-npx prisma generate
-```
-
-Prisma 7 emits the client as TypeScript into `src/generated/prisma` — inside the
-project, not into `node_modules`. That folder is git-ignored, so a fresh clone
-never has it, and nearly every file under `src/` imports from it. Re-run this after
-any change under `prisma/schema/`.
-
-**4. Run the migrations**
-
-```bash
+cp .env.example .env      # DATABASE_URL and the JWT secrets at minimum
 npx prisma migrate deploy
-```
-
-This applies the seven migrations committed under `prisma/migrations/`. Use
-`migrate dev` instead if you are changing the schema and want a new migration
-generated.
-
-**5. Start the server**
-
-```bash
 npm run dev
 ```
 
-You should see the database connect, the seed run, and the port it is listening on.
-Confirm it is up:
+Environment variables are parsed with Zod at boot, so a missing or malformed one stops the
+process with a message rather than failing later at the first request that needed it.
 
-```bash
-curl http://localhost:5000/
-# {"success":true,"message":"Welcome to DMS - Distributor Management System Backend","data":{...}}
-```
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | What the app connects with. On a pooled provider like Neon, the pooled endpoint |
+| `DIRECT_URL` | Same database, direct endpoint. Only the Prisma CLI uses it — migrations take an advisory lock and issue DDL, and a transaction pooler breaks both. Falls back to `DATABASE_URL` |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Required |
+| `REDIS_URL` | Product cache, bKash tokens, OTPs, staged registrations, rate-limit counters |
+| `SMTP_*`, `EMAIL_SENDER` | Registration codes, password resets, invoice email |
+| `CLOUDINARY_*` | Product and profile images |
+| `BKASH_*` | Gateway credentials and the callback URL |
+| `SUPER_ADMIN_*` | Seeded admin. The email is validated as an email — the login route rejects anything else, so a value like `admin` would seed an account nobody could sign in to |
 
-On first boot the seed creates a super admin from `SUPER_ADMIN_EMAIL` and
-`SUPER_ADMIN_PASSWORD`. Log in with those to get your first token — every other
-route needs one. Straight from `.env.example` that means:
+Only PostgreSQL is required. Redis, SMTP, Cloudinary and bKash are optional: the app boots
+without them and only the routes needing one degrade. Redis degrades silently — the product
+cache falls through to Postgres, rate limiting counts per instance — while the others answer
+503 naming the variable to set.
 
-```bash
-curl -X POST http://localhost:5000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@dms.com","password":"SuperAdmin123!"}'
-```
+## Seeded accounts
 
-Those two values are local defaults, and the only account that exists before you
-create anything. Change them in `.env` before you seed a database anyone else can
-reach — the super admin can read every branch, change any role and delete users.
+Demo data is seeded on boot in development only. Production and test never create demo
+accounts, and production refuses to start on a default or short admin password.
 
-There is no public sign-up. `POST /auth/register` requires an admin or a branch
-manager to be logged in already, so this seeded account is where every other user
-comes from.
+| Role | Email | Password |
+|---|---|---|
+| Super Admin | `SUPER_ADMIN_EMAIL` | `SUPER_ADMIN_PASSWORD` |
+| Branch Manager (Dhaka) | `manager.dhaka@dms.com` | `Manager123!` |
+| Branch Manager (Chattogram) | `manager.ctg@dms.com` | `Manager123!` |
+| Field SR | `sr1@dms.com` | `FieldSr123!` |
 
-## Environment variables
+Plus two branches, twelve products stocked in both, and six retailers — one of them
+(`Rahim General Store`) deliberately close to its credit limit, so the credit block can be
+demonstrated without setting anything up first.
 
-`src/app/config/index.ts` is the only place `process.env` is read. Application code
-imports `config` from there rather than reaching for `process.env` directly.
+The deployed instance runs with `NODE_ENV=production`, so none of that demo data exists
+there — only the super admin from `SUPER_ADMIN_EMAIL`. Branches, products and staff are
+created through the API, which is also the honest way to see the system work.
 
-| Variable | What it's for |
-| --- | --- |
-| `NODE_ENV` | `development` includes the stack trace in error responses |
-| `PORT` | Port the HTTP server listens on |
-| `DATABASE_URL` | Connection string the running app uses |
-| `DIRECT_URL` | Used only by `prisma migrate` — see below |
-| `JWT_ACCESS_SECRET` | Signing key for access tokens |
-| `JWT_REFRESH_SECRET` | Signing key for refresh tokens |
-| `JWT_ACCESS_EXPIRES_IN` | Access token lifetime, e.g. `15m` |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifetime, e.g. `7d` |
-| `CORS_ORIGINS` | Comma-separated allowlist |
-| `REDIS_URL` | Product cache, OTP storage, rate-limit counters, bKash tokens |
-| `GOOGLE_CLIENT_ID` | Verifying Google ID tokens on `/auth/google` |
-| `SMTP_*`, `EMAIL_SENDER` | OTP, password reset and invoice email |
-| `CLOUDINARY_*` | Product and profile image uploads |
-| `BKASH_*` | Tokenized checkout credentials and callback URL |
-| `SUPER_ADMIN_*` | Seeded on first boot |
-
-**Why two database URLs.** On a pooled provider such as Neon, `DATABASE_URL` points
-at the pooled endpoint (the host containing `-pooler`) and `DIRECT_URL` at the
-direct one. Migrations take an advisory lock and issue DDL, and a transaction
-pooler breaks both. `prisma.config.ts` prefers `DIRECT_URL` for exactly this
-reason. On plain Postgres with no pooler in front, set them to the same value.
-
-## Project structure
+## Layout
 
 ```
 src/
-├── server.ts                     # connect, seed, register cron, listen, shut down
-├── app.ts                        # express app: helmet, cors, rate limit, routes
-├── generated/prisma/             # Prisma client — git-ignored, run `prisma generate`
-└── app/
-    ├── config/index.ts           # validates and exposes every environment variable
-    ├── lib/                      # third-party clients: prisma, redis, bkash,
-    │                             #   cloudinary, mailer, otp, multer, cron
-    ├── middleware/
-    │   ├── checkAuth.ts          # `auth(...roles)` — JWT verify and role guard
-    │   ├── validateRequest.ts    # Zod on the body
-    │   ├── validateQuery.ts      # Zod on the query string, and UUID params
-    │   ├── globalErrorHandler.ts # every thrown error becomes one JSON shape
-    │   └── notFound.ts
-    ├── utils/
-    │   ├── money.ts              # the Decimal rules — no float in a money path
-    │   ├── orderAccess.ts        # the single definition of who may see an order
-    │   ├── orderLock.ts          # `SELECT … FOR UPDATE` on an order row
-    │   ├── invoicePdf.ts         # streams a PDF, writes no file
-    │   ├── sendResponse.ts       # the `{ success, message, meta, data }` envelope
-    │   └── seed.ts
-    └── module/                   # analytics, audit, auth, branch, inventory,
-                                  #   order, payment, product, retailer, user
-
-prisma/
-├── schema/                       # split across files, wired by prisma.config.ts
-└── migrations/                   # generated SQL, committed
-
-api/index.js                      # Vercel serverless entry — see Deployment
-tests/regressions.test.ts         # 28 tests, mostly concurrency
+  app.ts                    middleware chain and route mounting
+  server.ts                 the long-lived process: connect, seed, schedule, listen
+  app/
+    config/                 env parsed and validated with Zod
+    lib/                    prisma, redis, bkash, mailer, cloudinary, multer, otp, cron
+    middleware/             auth guard, validation, error handler, 404
+    module/<feature>/       route · controller · service · validation
+    templates/              .ejs email bodies
+    utils/                  AppError, pagination, invoice PDF, money, locks
+api/index.js                serverless entry (Vercel)
+prisma/schema/              schema split by aggregate
+tests/                      regression tests over the concurrency paths
 ```
 
-Every module holds the same four or five files — `route`, `controller`, `service`,
-`validation`, and an `interface` where the types are worth naming. The layering is
-`route → controller → service`: controllers read `req`, call a service and hand the
-result to `sendResponse`; **services own every Prisma call and every transaction**,
-and controllers never touch Prisma.
+Controllers never touch Prisma. They read the request, call a service, hand the result to
+`sendResponse`. Services own the business rules, every query and every transaction. Holding
+that line is what stops a rule quietly existing in two places with two different answers.
 
-## The API
+## The order transaction
 
-Base URL: `http://localhost:5000/api/v1`
+`POST /orders` is where most of the thinking went. Three things have to hold together or none
+of them do.
 
-**Auth** — `/auth`
+**Prices come from the database, never the request.** The client sends product IDs and
+quantities; unit price, subtotal and payable amount are computed server-side. No caller can
+dictate what it pays.
 
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | `/register` | admin, manager | Stages the signup, emails an OTP |
-| POST | `/verify-email` | – | The OTP creates the account |
-| POST | `/resend-otp` | – | |
-| POST | `/login` | – | |
-| POST | `/refresh-token` | – | Reads the refresh cookie or body |
-| POST | `/forgot-password` · `/reset-password` | – | OTP by email |
-| POST | `/google` | – | Google ID token, existing staff only |
-| POST | `/logout` | any | Revokes issued tokens |
-| GET | `/me` | any | |
-
-**Core resources**
-
-| Method | Path | Auth |
-| --- | --- | --- |
-| POST · GET | `/branches` | admin · any |
-| POST · GET | `/products` | admin · any |
-| GET · PATCH · DELETE | `/products/:id` | any · admin · admin |
-| PATCH | `/products/:id/image` | admin |
-| GET | `/inventory` | any |
-| PATCH | `/inventory/adjust` | admin, manager |
-| POST · GET | `/retailers` | admin, manager · any |
-| GET | `/retailers/:id/credit-status` | any |
-| DELETE | `/retailers/:id` | admin, manager |
-
-**Orders** — `/orders`
-
-| Method | Path | Auth |
-| --- | --- | --- |
-| POST | `/` | **SR only** |
-| GET | `/` · `/:id` | any, scoped by role |
-| PATCH | `/:id/status` | admin, manager |
-| GET | `/:id/invoice` | any with access — streams a PDF |
-| POST | `/:id/invoice/email` | any with access |
-
-**Payments** — `/payments`
-
-| Method | Path | Auth |
-| --- | --- | --- |
-| POST | `/initiate` | any with access to the order |
-| GET · POST | `/callback` | **none** — bKash calls this |
-| GET | `/:id` | any with access |
-| POST | `/:id/refund` | admin, manager |
-
-**Admin** — `/admin`
-
-| Method | Path | Auth |
-| --- | --- | --- |
-| GET | `/users` | admin |
-| PATCH | `/users/:id/role` | admin |
-| DELETE | `/users/:id` | admin |
-| GET | `/audit-logs` | admin |
-| GET | `/dashboard-stats` | admin |
-
-`PATCH /users/me` and `PATCH /users/me/image` are open to any authenticated role.
-
-### Response shape
-
-Every response carries the same envelope, success or failure:
-
-```json
-{ "success": true, "message": "...", "data": {} }
-```
-
-Paginated lists add `meta` with `page`, `limit`, `total` and `totalPage`. Failures
-carry `errors`, an array that is empty unless validation produced field-level
-detail:
-
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [{ "path": "email", "message": "Invalid email" }]
-}
-```
-
-`GET /orders/:id/invoice` is the one route that breaks the contract — it streams a
-PDF rather than JSON.
-
-Import `DMS.postman_collection.json` for a working collection: 42 requests with
-descriptions and captured example responses.
-
-## Roles and authentication
-
-Three roles, and the differences are not only about which routes they can reach:
-
-| | SUPER_ADMIN | BRANCH_MANAGER | FIELD_SR |
-| --- | --- | --- | --- |
-| Branches, products, users | ✅ | – | – |
-| Stock, retailers, order status | ✅ | own branch | – |
-| Create orders | – | – | ✅ |
-| Sees which orders | all | own branch | own only |
-
-Two of those cells are deliberate rather than incidental. An SR creates orders but
-cannot approve them — one person taking an order and clearing it themselves is
-exactly the control a distributor needs. And a manager is confined to their own
-branch, which is enforced in `assertOrderAccess` rather than repeated at each
-endpoint, so the rule cannot drift between routes.
-
-`auth(...roles)` in `middleware/checkAuth.ts` is both the JWT verify and the role
-guard. It also rejects a token whose `tokenVersion` no longer matches the user row
-— logout and password reset increment that column, which revokes tokens already
-issued. That is the usual gap in JWT auth, closed with one extra comparison per
-request.
-
-Access tokens live 15 minutes, refresh tokens 7 days. Send the access token as
-`Authorization: Bearer <token>`.
-
-## Money and concurrency
-
-This is the part of the codebase that had the most thought put into it, and the
-part most worth reading if you are reviewing it.
-
-**Money is `Prisma.Decimal` end to end.** `Decimal(12,2)` in the schema, `Decimal`
-in the services, and a Zod schema in `utils/money.ts` that rejects more than two
-decimal places. No float ever touches a monetary path. Amounts serialise as JSON
-strings, which is why `"price": "12.50"` is correct rather than a bug.
-
-**Balances and stock levels are never read then written.** Being inside
-`$transaction` does not make that safe — PostgreSQL's default READ COMMITTED lets
-two transactions read the same row before either writes. Both would pass the same
-check and both would write, and one write would silently overwrite the other. So
-the check is the update's condition:
+**Credit is reserved by a conditional update, not a read and then a write.**
 
 ```ts
 const reserved = await tx.retailer.updateMany({
-  where: { id, dueBalance: { lte: creditLimit.minus(payable) } },
+  where: { id, deletedAt: null, dueBalance: { lte: creditLimit.minus(payable) } },
   data:  { dueBalance: { increment: payable } },
 });
 if (reserved.count === 0) throw new AppError(400, 'Credit limit exceeded');
 ```
 
-Stock decrements follow the same shape. Order items are sorted by product ID before
-that loop so concurrent orders acquire row locks in the same order and cannot
-deadlock. Payment and status transitions take `lockOrder()` — `SELECT … FOR UPDATE`
-— before reading the order. Admin-membership changes serialise on a shared advisory
-lock, so two admins cannot concurrently remove the last one.
+Being inside a transaction does not make a read-then-write safe. Postgres runs at READ
+COMMITTED by default, so two orders for the same shop can both read the same balance, both pass
+a plain comparison, and both increment — putting the retailer over their limit. Checking and
+incrementing in one statement is what lets the database serialise them.
 
-**Network calls stay out of transactions.** bKash, SMTP and Cloudinary are all
-called before the transaction opens or after it commits. Holding row locks across a
-multi-second round trip turns a slow third party into database contention.
+**Stock is decremented the same way**, with `stock: { gte: quantity }` in the `where`, so two
+SRs racing for the last carton cannot both win. Items are sorted by product ID before the loop
+so concurrent orders take row locks in the same order and cannot deadlock against each other.
 
-**The bKash callback is not trusted.** It carries no authentication — it cannot,
-since bKash's server has no token — so it is treated as a hint that something
-happened. The server then queries bKash directly and only credits the order if the
-gateway confirms the payment and the amount matches. Refunds work the same way in
-reverse: the gateway call succeeds first, and only then is the row marked
-`REFUNDED`.
+A pending order reserves both inventory and credit immediately. Manager approval moves it
+through dispatch and delivery; cancelling releases both reservations exactly once.
 
-## Optional services
+Money is `Decimal` end to end. Floating point is not a currency type, and a fraction of a paisa
+surviving a few thousand orders becomes a real discrepancy in a ledger.
 
-Only PostgreSQL is required. The rest degrade in one of two ways.
+## Payments
 
-**503 with a message naming the variable to set** — SMTP, Cloudinary and bKash.
-Configure them and the route works; leave them out and only that route fails, with
-an error that says which variable is missing.
+bKash tokenized checkout: create → customer pays → callback → execute.
 
-**Silent degradation** — Redis. The product cache falls through to Postgres, and
-rate limiting falls back to per-instance counting via `AdaptiveRateLimitStore`,
-which picks its backing store on first use rather than at import. Nothing fails;
-you simply lose the cache and the shared counter.
+The callback is never trusted on its own. Anyone can hit that URL with a plausible query
+string, so nothing is credited until the server calls bKash's execute endpoint and gets back a
+completed transaction with a matching amount. If execute times out without a verdict the
+payment stays pending and a status query reconciles it later — a timeout is not a failure, and
+treating it as one drops real money.
 
-## Known limitations
+Initiating twice for one order returns 409 while a payment is pending. Without that, two
+checkout sessions for the same invoice can both complete and the shop pays twice.
 
-Worth knowing before you spend time debugging what looks like your own mistake:
+A settled payment can be reversed with `POST /payments/:id/refund`, which calls the gateway and
+walks the money back through the same totals the settlement moved. It is a separate endpoint
+rather than a step inside cancellation, because returning money is a decision someone makes:
+role-restricted, a written reason required, and audited. That is also what makes a paid order
+cancellable — refund first, then cancel.
 
-- **The tests do not use a real database.** `tests/regressions.test.ts` runs against
-  a Prisma double with an order mutex, so it exercises the service logic — that the
-  code asks the right question — rather than PostgreSQL's own locking. The 28 tests
-  cover concurrent gateway callbacks, untrusted callbacks, execute timeouts,
-  initiation racing cancellation, inventory races and last-super-admin protection.
-- **The cron does not run on a serverless deployment.** The hourly overdue and
-  low-stock report is registered in `server.ts`, which Vercel never executes — it
-  imports `api/index.js` instead. Use Vercel Cron to hit an endpoint on a schedule;
-  the code does not need to change.
-- **Seeding does not run there either**, for the same reason. Run migrations and
-  seeding as a one-off against the database.
-- **Branch type is a label.** `CENTRAL`, `DEPOT` and `BRANCH` describe the
-  distribution hierarchy, but there is no inter-branch stock transfer, so all three
-  behave identically today. The field is where that feature would hook in.
-- **`routeArea` does not bind an SR to a territory.** An SR belongs to a branch;
-  `routeArea` only filters retailers. Any SR in a branch can order for any retailer
-  in it.
-- **bKash is the only gateway.** `PaymentMethod` also lists `BANK_TRANSFER`, but
-  nothing implements it.
-- **Deletes are soft, and that has a visible consequence.** Deleting rewrites the
-  natural key to `:deleted:<id>` so the original phone number or SKU becomes
-  available again. You will see those values if you query the table directly.
+The gateway's own reply is stored verbatim on the payment row. When a charge is disputed, what
+the gateway actually said is the only authoritative record, and it cannot be reconstructed from
+derived columns afterwards.
 
-## Extending this
+## Registration is two steps
 
-New features go under `src/app/module/<name>/` as four or five files:
+`POST /auth/register` does not create an account. An admin or the branch's own manager calls it;
+it stages the signup in Redis for five minutes and emails a six-digit code. `POST
+/auth/verify-email` consumes the code and creates the user.
 
-| File | Responsibility |
-| --- | --- |
-| `<name>.route.ts` | Wires `auth(...roles)` and validation to controllers |
-| `<name>.controller.ts` | Reads `req`, calls the service, calls `sendResponse` |
-| `<name>.service.ts` | All business logic, every Prisma call, every transaction |
-| `<name>.validation.ts` | Zod schemas for body and query |
-| `<name>.interface.ts` | Types worth naming |
+Keeping the pending signup out of Postgres means an abandoned registration leaves nothing
+behind — no half-built row holding an email address, no cleanup job to delete them later. The
+address is only taken once someone proves they own it.
 
-Then mount it in `app.ts` beside the existing lines.
+Codes are single use, expire in five minutes, and allow five attempts. The attempt cap is what
+actually makes a six-digit code strong: a per-IP rate limiter does nothing to stop a script
+working through a million possibilities against one account. Checking, counting and consuming
+happen in a single Redis operation, so two concurrent requests cannot both spend one code.
 
-Three rules keep the boundaries real rather than decorative:
+`POST /auth/forgot-password` answers identically whether or not the account exists. A different
+message for an unknown address turns the endpoint into a way to discover who has an account.
 
-- **Controllers never call Prisma, services never touch `req` or `res`.** A service
-  that needs to know its caller takes the small `{ userId, role, branchId }` shape.
-- **Never read a balance or stock level and then write it back.** Use a conditional
-  update and check `count`, as shown above.
-- **Import Prisma from `src/generated/prisma/client.js`** by relative path, never
-  from `@prisma/client`. Prisma 7 generates into the project.
+## API surface
 
-Order status transitions live in a constant map in `module/order/order.interface.ts`
-(`PENDING → APPROVED → DISPATCHED → DELIVERED`, with `CANCELLED` reachable from the
-first two only). Add transitions there, not with ad-hoc checks.
+All routes are prefixed `/api/v1`. The Postman collection has every request with a description
+and real example responses, successes and failures alike.
 
-## Scripts
+```
+POST   /auth/register            admin-initiated; stages the account and emails a code (202)
+POST   /auth/verify-email        confirms the code, creates the user, returns tokens
+POST   /auth/resend-otp          new code for a registration still staged
+POST   /auth/login               POST /auth/refresh-token    POST /auth/logout
+POST   /auth/google              GET  /auth/me
+POST   /auth/forgot-password     POST /auth/reset-password
 
-```bash
-npm run dev          # tsx watch on src/server.ts
-npm run build        # prisma generate → tsc → copy .ejs templates into dist/
-npm start            # run the built process entry
-npm test             # 28 regression tests
-npm run lint:check   # biome
-npm run format:fix   # biome, writes
-npx tsc --noEmit     # typecheck alone
+PATCH  /users/me                 PATCH /users/me/image
+GET    /admin/users              search, role and branch filter, pagination
+PATCH  /admin/users/:id/role     DELETE /admin/users/:id
+
+POST   /branches                 GET /branches
+
+POST   /products                 GET /products     search, filter, sort, paginate, cached
+GET    /products/:id             PATCH /products/:id
+PATCH  /products/:id/image       DELETE /products/:id
+
+GET    /inventory                branch-scoped, ?lowStock=
+PATCH  /inventory/adjust
+
+POST   /retailers                GET /retailers    search and route filter
+GET    /retailers/:id/credit-status
+DELETE /retailers/:id            blocked while the shop still owes money
+
+POST   /orders                   FIELD_SR
+GET    /orders                   GET /orders/:id       role-scoped
+GET    /orders/:id/invoice       PDF
+POST   /orders/:id/invoice/email the same PDF, mailed to the retailer
+PATCH  /orders/:id/status        the fulfilment state machine
+
+POST   /payments/initiate        GET/POST /payments/callback
+GET    /payments/:id             POST /payments/:id/refund
+
+GET    /admin/audit-logs         GET /admin/dashboard-stats
 ```
 
-Run a single test by name:
+Forty-two method and path combinations.
 
-```bash
-node --import tsx --test --test-name-pattern="concurrent cancellation" tests/*.test.ts
+## Responses
+
+```json
+{ "success": true, "message": "Operation successful", "data": {} }
 ```
 
-Prisma's CLI is called directly rather than wrapped:
+Paginated endpoints add `meta`: `{ "page": 1, "limit": 10, "total": 45, "totalPage": 5 }`.
+
+```json
+{ "success": false, "message": "Validation failed", "errors": [{ "path": "email", "message": "Invalid email" }] }
+```
+
+`GET /orders/:id/invoice` is the one exception — it returns `application/pdf`.
+
+The global handler maps Zod errors to 400, `AppError` to its own status, Prisma `P2002` to 409,
+`P2025` to 404, `P2034` (a serialisable transaction that lost a race) to 409 with a retry
+message, and JWT errors to 401. Stack traces appear only when `NODE_ENV=development`.
+
+## Security
+
+Passwords are bcrypt at 12 rounds. Access tokens last 15 minutes; refresh tokens live 7 days in
+an httpOnly cookie. Every user row carries a `tokenVersion` that logout and password reset
+increment, revoking tokens already handed out — without it, "sign out everywhere" only signs out
+the tab you clicked in.
+
+`helmet` sets the security headers, CORS runs from an allowlist, and rate limiting is two-tier:
+100 requests per 15 minutes globally, 5 on the auth routes. Counters live in Redis when it is
+reachable, so one limit is shared across instances, and fall back to per-instance counting when
+it is not.
+
+Express trusts exactly one proxy hop. Behind a platform proxy the client address arrives in
+`X-Forwarded-For`; without that setting the audit log records the proxy for every action and
+rate limiting treats every caller as one client. Trusting the whole chain would let anyone spoof
+their address by setting the header themselves.
+
+Soft deletes never hard-remove a row. Because `email`, `sku` and `phone` are unique, deletion
+also appends `:deleted:<id>` to the natural key so the value can be reused later.
+
+Every state change — orders, roles, deactivations, refunds, inventory adjustments — is written
+to an audit log with the actor and their IP.
+
+## Testing
 
 ```bash
-npx prisma generate
-npx prisma migrate deploy
-npx prisma studio        # browser GUI at http://localhost:5555
+npm test          # 28 regression tests
+npm run lint:check
+npm run build
 ```
+
+The tests aim at what type checking and linting cannot reach: concurrent gateway callbacks
+settling one payment exactly once, an untrusted failure callback that must not release a pending
+payment, execute timeouts reconciled against a status query, initiation racing cancellation,
+concurrent inventory adjustments that must not fall below zero, and demotions that must not
+remove the last super admin.
+
+They use a database double with an order mutex rather than a live PostgreSQL instance, so they
+demonstrate the logic rather than the database's own locking. A real concurrency run against
+PostgreSQL, and a full bKash sandbox checkout, are still worth doing before trusting a
+production deployment.
 
 ## Deployment
 
-There are two entry points and the difference matters.
+Deployed to Vercel. `api/index.js` is the serverless entry; `src/server.ts` remains the entry
+for a long-lived process — Render, a container, or `npm run dev`.
 
-`src/server.ts` is the long-lived process: connect, seed, register the cron
-schedule, listen, shut down gracefully. `api/index.js` is the Vercel serverless
-entry — it imports the same Express app from `dist/` and does none of that
-bootstrap. Anything added to `server.ts` does not run on Vercel.
+Two things only the process-based entry does, worth knowing before choosing a target: boot
+seeding, and the hourly job reporting overdue orders and low stock. Serverless has no persistent
+process to hold a schedule, so on Vercel that job needs Vercel Cron. Migrations belong in the
+build either way. `render.yaml` is a working blueprint for Render, where both run normally.
 
-Redis is the one thing that had to be handled for serverless. `ensureRedis()` opens
-the connection from the request path, and the serverless entry races it against a
-short timeout, because the reconnect strategy retries forever and never rejects —
-an unbounded await there hangs the entire invocation rather than failing the
-request.
+## Not built
 
-Two settings in `vercel.json` are not obvious:
-
-- `installCommand: npm ci --include=dev`, because `NODE_ENV=production` otherwise
-  makes npm skip devDependencies, which is where TypeScript and every `@types`
-  package live.
-- `app.set('trust proxy', 1)` in `app.ts` — one hop, not `true`. Without it the
-  audit log records the proxy address for every action, rate limiting treats all
-  callers as one client, and express-rate-limit refuses to start. `true` would let
-  any caller spoof their address by setting the header themselves.
-
-## Troubleshooting
-
-**`Cannot find module '.../src/generated/prisma/client'`**
-Run `npx prisma generate` — see step 3 of Getting started.
-
-**The app refuses to start and names an environment variable**
-That is the config validator doing its job. Set the variable it names in `.env`.
-
-**`Can't reach database server` / `ECONNREFUSED`**
-Postgres is not running, or `DATABASE_URL` points somewhere unreachable. Confirm
-with `pg_isready -h localhost -p 5432`.
-
-**Migrations hang or fail on a hosted database**
-`DIRECT_URL` is probably pointing at a pooled endpoint. Drop `-pooler` from the
-host — migrations need a direct connection.
-
-**`401 Invalid or expired token` on a request that worked a moment ago**
-Access tokens live 15 minutes. Log in again, or use `POST /auth/refresh-token`.
-
-**`403` where you expected `200`**
-The role is wrong for the route, or the record belongs to another branch or SR.
-Check `GET /auth/me` for the role the token actually carries — a role changed in
-the database does not apply until the next login.
-
-**`409 A payment is already pending for this order`**
-An earlier checkout is still open. Settle it through the callback route before
-initiating another; this is the guard against double-charging.
-
-**A route returns `503`**
-An optional service is not configured. The message names the variable to set.
-
-**`Too many requests`**
-The rate limiter is working: 100 requests per 15 minutes globally, 5 on auth
-routes. Wait it out, or raise the limits in `app.ts` for local work.
+Deliberately out of scope, though the schema leaves room: batch and expiry tracking,
+inter-branch stock transfers, purchase orders and GRN, sales returns, a retailer ledger table,
+stock movement history, SR beat plans and commission, and configurable discount ceilings — SR
+discounts stay subject to manager review of the pending order.
