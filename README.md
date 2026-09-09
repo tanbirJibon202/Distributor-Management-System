@@ -10,7 +10,15 @@ accounts. There is no cart and no public signup. The SR is the only person who c
 order, and staff accounts are created by an admin or a branch manager, never by the employee
 themselves.
 
-**Live:** https://distributor-management-system-seven.vercel.app/api/v1
+| | |
+|---|---|
+| **Live API** | https://distributor-management-system-seven.vercel.app/api/v1 |
+| **API Documentation** | https://documenter.getpostman.com/view/50682868/2sBYAxRW3V |
+
+The documentation is the Postman collection published: 42 requests across nine
+folders, each one described, with captured example responses for both the success
+and the failure cases. `DMS.postman_collection.json` in this repo is the same
+collection if you would rather import it and run the requests yourself.
 
 **Stack:** Node.js · TypeScript · Express 5 · PostgreSQL · Prisma 7 · Redis · JWT · bKash
 
@@ -183,8 +191,9 @@ message for an unknown address turns the endpoint into a way to discover who has
 
 ## API surface
 
-All routes are prefixed `/api/v1`. The Postman collection has every request with a description
-and real example responses, successes and failures alike.
+All routes are prefixed `/api/v1`. The list below is the map; the
+[published documentation](https://documenter.getpostman.com/view/50682868/2sBYAxRW3V) has each
+request in full, with real example responses, successes and failures alike.
 
 ```
 POST   /auth/register            admin-initiated; stages the account and emails a code (202)
