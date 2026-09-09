@@ -69,7 +69,7 @@ accounts, and production refuses to start on a default or short admin password.
 
 | Role | Email | Password |
 |---|---|---|
-| Super Admin | `admin@dms.com` | `SuperAdmin123!` |
+| Super Admin | `tanbirahamed202@gmail.com` | `DmsSuperAdmin@2026` |
 | Branch Manager (Dhaka) | `manager.dhaka@dms.com` | `Manager123!` |
 | Branch Manager (Chattogram) | `manager.ctg@dms.com` | `Manager123!` |
 | Field SR | `sr1@dms.com` | `FieldSr123!` |
@@ -78,9 +78,11 @@ Plus two branches, twelve products stocked in both, and six retailers — one of
 (`Rahim General Store`) deliberately close to its credit limit, so the credit block can be
 demonstrated without setting anything up first.
 
-The deployed instance runs with `NODE_ENV=production`, so none of that demo data exists
-there — only the super admin from `SUPER_ADMIN_EMAIL`. Branches, products and staff are
-created through the API, which is also the honest way to see the system work.
+The deployed instance runs with `NODE_ENV=production`, so none of the demo data exists
+there — only the super admin, whose credentials are the first row above. Branches, products
+and staff are created through the API, which is also the honest way to see the system work.
+Running locally, the super admin comes from whatever `SUPER_ADMIN_EMAIL` and
+`SUPER_ADMIN_PASSWORD` are set to in your own `.env`.
 
 ## Layout
 
